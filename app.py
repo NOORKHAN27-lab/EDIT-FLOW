@@ -255,6 +255,26 @@ div[data-testid="stImage"] img{{ border-radius:10px; }}
   display:flex; align-items:center; justify-content:center; font-size:15px;
 }}
 .sidebar-brand-text{{ font-size:15px; font-weight:800; color:{T['text']}; }}
+.sidebar-stat{{
+  background:{T['surface2']}; border:1px solid {T['line_soft']}; border-radius:10px;
+  padding:10px 4px; text-align:center; margin-bottom:2px;
+}}
+.sidebar-stat-num{{
+  font-size:19px; font-weight:800; background:{T['accent_grad']}; -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent; background-clip:text;
+}}
+.sidebar-stat-label{{ font-size:10px; color:{T['muted2']}; text-transform:uppercase; letter-spacing:0.04em; margin-top:2px; }}
+section[data-testid="stSidebar"] .stButton{{ margin-bottom:2px; }}
+section[data-testid="stSidebar"] .stButton button{{
+  justify-content:flex-start !important; text-align:left !important; padding:8px 10px !important;
+  font-size:12.5px !important; box-shadow:none !important;
+}}
+section[data-testid="stSidebar"] .stButton button:not([kind="primary"]){{
+  background:transparent !important; color:{T['muted']} !important; border:1px solid transparent !important;
+}}
+section[data-testid="stSidebar"] .stButton button:not([kind="primary"]):hover{{
+  background:{T['surface2']} !important; color:{T['text']} !important;
+}}
 .sidebar-section-label{{
   font-size:11px; font-weight:700; color:{T['muted2']}; text-transform:uppercase;
   letter-spacing:0.06em; margin:18px 0 10px 0;
@@ -316,17 +336,54 @@ def export_settings_widget(key_prefix):
     return resolution, quality
 
 
+NAV_ITEMS = [
+    ("home", "home", "Dashboard"),
+    ("pipeline", "zap", "Full Pipeline"),
+    ("silence", "volume-x", "Silence Cuts"),
+    ("thumbs", "image", "Thumbnails"),
+    ("watermark", "tag", "Watermark"),
+    ("info", "clipboard", "Video Info"),
+    ("rename", "folder", "Batch Rename"),
+    ("scene", "film", "Scene Detect"),
+    ("highlight", "clapperboard", "Highlight Reel"),
+    ("grade", "palette", "Color Grade"),
+    ("captions", "captions", "Captions"),
+]
+
+if "active_page" not in st.session_state:
+    st.session_state.active_page = "home"
+
+
 # ---------------------------------------------------------------------------
 # SIDEBAR — theme toggle + processing history
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# SIDEBAR — brand, quick nav, theme toggle, session workspace
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown(f"""
     <div class="sidebar-brand">
       <div class="mark">{icon('clapperboard', 15, '#062A26')}</div>
-      <div class="sidebar-brand-text">EditFlow</div>
+      <div>
+        <div class="sidebar-brand-text">EditFlow</div>
+        <div style="font-size:11px; color:{T['muted2']};">Video editing automation suite</div>
+      </div>
     </div>
-    <div style="font-size:12px; color:{T['muted2']}; margin-bottom:4px;">Video editing automation suite</div>
     """, unsafe_allow_html=True)
+
+    scol1, scol2 = st.columns(2)
+    with scol1:
+        st.markdown(f'<div class="sidebar-stat"><div class="sidebar-stat-num">10</div><div class="sidebar-stat-label">Tools</div></div>', unsafe_allow_html=True)
+    with scol2:
+        st.markdown(f'<div class="sidebar-stat"><div class="sidebar-stat-num">{len(st.session_state.history)}</div><div class="sidebar-stat-label">This session</div></div>', unsafe_allow_html=True)
+
+    st.markdown(f'<div class="sidebar-section-label">{icon("zap", 13)} Quick Access</div>', unsafe_allow_html=True)
+    for key, icon_name, label in NAV_ITEMS:
+        is_active = st.session_state.active_page == key
+        if st.button(f"{icon(icon_name, 14)}  {label}", key=f"sbnav_{key}", use_container_width=True,
+                     type="primary" if is_active else "secondary"):
+            st.session_state.active_page = key
+            st.rerun()
 
     st.markdown(f'<div class="sidebar-section-label">{icon("settings", 13)} Appearance</div>', unsafe_allow_html=True)
     theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.theme == "dark" else 1,
@@ -337,7 +394,7 @@ with st.sidebar:
 
     st.markdown(f'<div class="sidebar-section-label">{icon("history", 13)} Session Workspace</div>', unsafe_allow_html=True)
     if not st.session_state.history:
-        st.markdown(f'<div class="history-empty">{icon("inbox", 22)}<br>Nothing processed yet this session.<br>Run a tool to see it here.</div>',
+        st.markdown(f'<div class="history-empty">{icon("inbox", 26)}<br><b>All quiet here</b><br>Run a tool and your activity will show up in this space.</div>',
                      unsafe_allow_html=True)
     else:
         for item in st.session_state.history:
@@ -363,41 +420,19 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# TOP NAVBAR — real website-style horizontal nav (not Streamlit's st.tabs)
+# "Back to Dashboard" link shown at the top of every tool page
 # ---------------------------------------------------------------------------
-NAV_ITEMS = [
-    ("home", "🏠", "Dashboard"),
-    ("pipeline", "⚡", "Full Pipeline"),
-    ("silence", "🔇", "Silence Cuts"),
-    ("thumbs", "🖼", "Thumbnails"),
-    ("watermark", "🏷", "Watermark"),
-    ("info", "📋", "Video Info"),
-    ("rename", "📁", "Batch Rename"),
-    ("scene", "🎞", "Scene Detect"),
-    ("highlight", "🎬", "Highlight Reel"),
-    ("grade", "🎨", "Color Grade"),
-    ("captions", "📝", "Captions"),
-]
-
-if "active_page" not in st.session_state:
-    st.session_state.active_page = "home"
-
-# Rendered as real Streamlit buttons laid out in a horizontal row (styled via
-# CSS below to look like a website nav bar), since Streamlit has no native
-# way to run a JS onclick callback without a custom component.
-st.markdown('<div class="navbar-wrap">', unsafe_allow_html=True)
-nav_cols = st.columns(len(NAV_ITEMS))
-for col, (key, emoji_icon, label) in zip(nav_cols, NAV_ITEMS):
-    with col:
-        is_active = st.session_state.active_page == key
-        btn_label = f"{emoji_icon}  {label}"
-        if st.button(btn_label, key=f"nav_{key}", use_container_width=True,
-                     type="primary" if is_active else "secondary"):
-            st.session_state.active_page = key
-            st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
-
 active = st.session_state.active_page
+
+if active != "home":
+    current_label = next((label for k, _, label in NAV_ITEMS if k == active), "")
+    bcol1, bcol2 = st.columns([1, 8])
+    with bcol1:
+        if st.button(f"{icon('home', 14)}  Dashboard", key="btn_back_home", use_container_width=True):
+            st.session_state.active_page = "home"
+            st.rerun()
+    with bcol2:
+        st.markdown(f'<div style="padding-top:8px; color:{T["muted"]}; font-size:13px;">{icon("arrow-right", 13)} You\'re viewing <b style="color:{T["text"]}">{current_label}</b></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # TOOL CATALOG — used by the dashboard/landing grid
