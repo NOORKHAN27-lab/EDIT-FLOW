@@ -20,7 +20,7 @@ from modules import silence_detector, thumbnail_generator, watermark, \
     visualizations, pipeline
 from modules.export_settings import RESOLUTIONS, QUALITY_PRESETS
 
-st.set_page_config(page_title="EditFlow", page_icon="🎬", layout="wide")
+st.set_page_config(page_title="EditFlow — Automated Video Editing", page_icon="🎬", layout="wide")
 
 # ---------------------------------------------------------------------------
 # THEME (dark / light toggle)
@@ -42,53 +42,171 @@ def log_history(action, detail=""):
 
 THEMES = {
     "dark": {
-        "bg": "#0B1220", "surface": "#111A2E", "surface2": "#16213A", "line": "#22304D",
-        "accent": "#2DD4BF", "accent_bright": "#5EEAD4", "text": "#E8ECF4", "muted": "#8B96AE",
-        "accent_text_on": "#062A26",
+        "bg": "#0A0F1C", "bg_grad": "linear-gradient(180deg, #0A0F1C 0%, #0B1424 100%)",
+        "surface": "#0F1830", "surface2": "#141F3D", "surface3": "#182448",
+        "line": "#22304D", "line_soft": "#1A2540",
+        "accent": "#2DD4BF", "accent2": "#818CF8", "accent_bright": "#5EEAD4",
+        "accent_grad": "linear-gradient(135deg, #2DD4BF 0%, #6366F1 100%)",
+        "text": "#F1F5F9", "muted": "#8B96AE", "muted2": "#64748B",
+        "accent_text_on": "#062A26", "shadow": "0 8px 30px rgba(0,0,0,0.35)",
+        "glow": "0 0 0 1px rgba(45,212,191,0.15), 0 8px 24px rgba(45,212,191,0.08)",
     },
     "light": {
-        "bg": "#F4F7FB", "surface": "#FFFFFF", "surface2": "#EEF2F8", "line": "#DCE3EE",
-        "accent": "#0D9488", "accent_bright": "#0F766E", "text": "#0F172A", "muted": "#5B6472",
-        "accent_text_on": "#FFFFFF",
+        "bg": "#F6F8FC", "bg_grad": "linear-gradient(180deg, #F6F8FC 0%, #EEF2FA 100%)",
+        "surface": "#FFFFFF", "surface2": "#F5F7FB", "surface3": "#EEF1F8",
+        "line": "#E1E7F2", "line_soft": "#EAEEF6",
+        "accent": "#0D9488", "accent2": "#6366F1", "accent_bright": "#0F766E",
+        "accent_grad": "linear-gradient(135deg, #0D9488 0%, #6366F1 100%)",
+        "text": "#0F172A", "muted": "#5B6472", "muted2": "#8791A3",
+        "accent_text_on": "#FFFFFF", "shadow": "0 8px 30px rgba(15,23,42,0.06)",
+        "glow": "0 0 0 1px rgba(13,148,136,0.12), 0 8px 24px rgba(13,148,136,0.06)",
     },
 }
 T = THEMES[st.session_state.theme]
 
 st.markdown(f"""
 <style>
-.stApp{{ background:{T['bg']}; color:{T['text']}; }}
-section[data-testid="stSidebar"]{{ background:{T['surface']}; border-right:1px solid {T['line']}; }}
-h1,h2,h3{{ color:{T['text']} !important; font-weight:700; }}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+html, body, [class*="css"] {{ font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }}
+
+.stApp{{ background:{T['bg_grad']}; color:{T['text']}; }}
+#MainMenu, footer, header[data-testid="stHeader"]{{ background:transparent; }}
+.block-container{{ padding-top:1.6rem; max-width:1220px; }}
+
+section[data-testid="stSidebar"]{{
+  background:{T['surface']}; border-right:1px solid {T['line_soft']};
+}}
+section[data-testid="stSidebar"] .block-container{{ padding-top:1.4rem; }}
+
+h1,h2,h3{{ color:{T['text']} !important; font-weight:700; letter-spacing:-0.01em; }}
+p, span, label, .stMarkdown{{ color:{T['text']}; }}
+
+/* ---------- Top brand header / nav ---------- */
 .editflow-header{{
   display:flex; align-items:center; justify-content:space-between;
-  padding:18px 26px; background:{T['surface']}; border:1px solid {T['line']};
-  border-radius:10px; margin-bottom:22px;
+  padding:16px 28px; background:{T['surface']};
+  border:1px solid {T['line_soft']}; border-radius:16px; margin-bottom:20px;
+  box-shadow:{T['shadow']};
 }}
-.editflow-logo{{ display:flex; align-items:center; gap:12px; }}
+.editflow-logo{{ display:flex; align-items:center; gap:14px; }}
 .editflow-logo .mark{{
-  width:34px; height:34px; border-radius:8px; background:{T['accent']};
-  display:flex; align-items:center; justify-content:center; font-size:18px;
+  width:42px; height:42px; border-radius:12px; background:{T['accent_grad']};
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+  box-shadow:0 4px 14px rgba(45,212,191,0.35);
 }}
-.editflow-title{{ font-size:19px; font-weight:700; color:{T['text']}; }}
-.editflow-title span{{ color:{T['accent']}; }}
-.editflow-credit{{ font-size:12px; color:{T['muted']}; }}
+.editflow-title{{ font-size:20px; font-weight:800; color:{T['text']}; letter-spacing:-0.02em; }}
+.editflow-title span{{
+  background:{T['accent_grad']}; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+}}
+.editflow-subtitle{{ font-size:12.5px; color:{T['muted']}; margin-top:2px; }}
+.editflow-badge{{
+  display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+  color:{T['accent_bright']}; background:{T['surface2']}; border:1px solid {T['line']};
+  padding:5px 11px; border-radius:999px; text-transform:uppercase; letter-spacing:0.04em;
+}}
+.editflow-badge .dot{{ width:6px; height:6px; border-radius:50%; background:{T['accent']}; box-shadow:0 0 8px {T['accent']}; }}
+.editflow-credit{{ font-size:12px; color:{T['muted']}; text-align:right; }}
 .editflow-credit b{{ color:{T['accent_bright']}; }}
-.stTabs [data-baseweb="tab-list"]{{ gap:4px; background:{T['surface']}; padding:6px; border-radius:10px; border:1px solid {T['line']}; flex-wrap:wrap; }}
-.stTabs [data-baseweb="tab"]{{ background:transparent; border-radius:7px; color:{T['muted']}; padding:10px 16px; }}
-.stTabs [aria-selected="true"]{{ background:{T['surface2']} !important; color:{T['accent_bright']} !important; }}
-div[data-testid="stFileUploaderDropzone"]{{ background:{T['surface2']}; border:1px dashed {T['line']}; border-radius:10px; }}
-.stButton button{{
-  background:{T['accent']} !important; color:{T['accent_text_on']} !important; border:none !important;
-  font-weight:700 !important; border-radius:7px !important;
+
+/* ---------- Nav tabs styled as a real top nav bar ---------- */
+.stTabs [data-baseweb="tab-list"]{{
+  gap:2px; background:{T['surface']}; padding:8px; border-radius:14px;
+  border:1px solid {T['line_soft']}; flex-wrap:wrap; box-shadow:{T['shadow']}; margin-bottom:8px;
 }}
-.stButton button:hover{{ background:{T['accent_bright']} !important; }}
-div[data-testid="stMetric"]{{ background:{T['surface']}; border:1px solid {T['line']}; border-radius:10px; padding:12px; }}
-.card{{ background:{T['surface']}; border:1px solid {T['line']}; border-radius:10px; padding:20px 22px; margin-bottom:18px; }}
-.card h4{{ color:{T['accent_bright']}; margin-top:0; }}
-.card p{{ color:{T['muted']}; font-size:14px; }}
-.history-item{{ font-size:12px; color:{T['muted']}; padding:8px 0; border-top:1px solid {T['line']}; }}
+.stTabs [data-baseweb="tab"]{{
+  background:transparent; border-radius:9px; color:{T['muted']}; padding:11px 18px;
+  font-weight:600; font-size:14px; transition:all 0.15s ease;
+}}
+.stTabs [data-baseweb="tab"]:hover{{ background:{T['surface2']}; color:{T['text']}; }}
+.stTabs [aria-selected="true"]{{
+  background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important;
+  box-shadow:0 4px 14px rgba(45,212,191,0.25);
+}}
+.stTabs [data-baseweb="tab-highlight"]{{ display:none; }}
+.stTabs [data-baseweb="tab-border"]{{ display:none; }}
+
+/* ---------- Cards ---------- */
+.card{{
+  background:{T['surface']}; border:1px solid {T['line_soft']}; border-radius:14px;
+  padding:22px 24px; margin-bottom:20px; box-shadow:{T['shadow']}; position:relative; overflow:hidden;
+}}
+.card::before{{
+  content:''; position:absolute; top:0; left:0; width:4px; height:100%; background:{T['accent_grad']};
+}}
+.card h4{{ color:{T['text']}; margin-top:0; margin-bottom:6px; font-size:17px; font-weight:700; padding-left:8px; }}
+.card p{{ color:{T['muted']}; font-size:13.5px; margin-bottom:0; padding-left:8px; line-height:1.5; }}
+
+/* ---------- Hero / feature strip ---------- */
+.hero-strip{{
+  display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;
+}}
+.pill{{
+  font-size:11.5px; font-weight:600; color:{T['muted']}; background:{T['surface']};
+  border:1px solid {T['line_soft']}; padding:7px 13px; border-radius:999px;
+}}
+.pill b{{ color:{T['accent_bright']}; }}
+
+/* ---------- Buttons ---------- */
+.stButton button{{
+  background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important; border:none !important;
+  font-weight:700 !important; border-radius:9px !important; padding:0.55rem 1.3rem !important;
+  box-shadow:0 4px 14px rgba(45,212,191,0.25) !important; transition:transform 0.12s ease, box-shadow 0.12s ease !important;
+}}
+.stButton button:hover{{ transform:translateY(-1px); box-shadow:0 6px 18px rgba(45,212,191,0.35) !important; }}
+.stDownloadButton button{{
+  background:{T['surface2']} !important; color:{T['accent_bright']} !important;
+  border:1px solid {T['line']} !important; font-weight:700 !important; border-radius:9px !important;
+}}
+.stDownloadButton button:hover{{ background:{T['surface3']} !important; border-color:{T['accent']} !important; }}
+
+/* ---------- Inputs / uploaders ---------- */
+div[data-testid="stFileUploaderDropzone"]{{
+  background:{T['surface2']}; border:1.5px dashed {T['line']}; border-radius:12px;
+}}
+.stSlider [data-baseweb="slider"]{{ margin-top:4px; }}
+div[data-testid="stMetric"]{{
+  background:{T['surface']}; border:1px solid {T['line_soft']}; border-radius:12px; padding:14px 16px;
+  box-shadow:{T['shadow']};
+}}
+div[data-testid="stMetricLabel"]{{ color:{T['muted']} !important; font-size:12.5px !important; }}
+div[data-testid="stMetricValue"]{{ color:{T['accent_bright']} !important; }}
+
+.stDataFrame{{ border-radius:12px; overflow:hidden; border:1px solid {T['line_soft']}; }}
+.stProgress > div > div{{ background:{T['accent_grad']} !important; }}
+
+/* ---------- Sidebar ---------- */
+.sidebar-brand{{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }}
+.sidebar-brand .mark{{
+  width:30px; height:30px; border-radius:9px; background:{T['accent_grad']};
+  display:flex; align-items:center; justify-content:center; font-size:15px;
+}}
+.sidebar-brand-text{{ font-size:15px; font-weight:800; color:{T['text']}; }}
+.sidebar-section-label{{
+  font-size:11px; font-weight:700; color:{T['muted2']}; text-transform:uppercase;
+  letter-spacing:0.06em; margin:18px 0 10px 0;
+}}
+.history-item{{
+  font-size:12px; color:{T['muted']}; padding:10px 12px; border-radius:9px;
+  background:{T['surface2']}; margin-bottom:6px; border:1px solid {T['line_soft']};
+}}
 .history-item b{{ color:{T['text']}; }}
-.compare-label{{ text-align:center; font-size:12px; color:{T['muted']}; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:6px; }}
+.history-empty{{
+  font-size:12.5px; color:{T['muted2']}; padding:16px; text-align:center;
+  background:{T['surface2']}; border-radius:10px; border:1px dashed {T['line']};
+}}
+.compare-label{{
+  text-align:center; font-size:11px; color:{T['muted']}; font-weight:700; letter-spacing:0.06em;
+  text-transform:uppercase; margin-bottom:8px; background:{T['surface2']}; padding:5px; border-radius:6px;
+}}
+
+/* ---------- Footer ---------- */
+.editflow-footer{{
+  margin-top:36px; padding:18px 24px; text-align:center; font-size:12px; color:{T['muted2']};
+  border-top:1px solid {T['line_soft']};
+}}
+.editflow-footer b{{ color:{T['accent_bright']}; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,10 +216,13 @@ st.markdown(f"""
     <div class="mark">🎬</div>
     <div>
       <div class="editflow-title">Edit<span>Flow</span></div>
-      <div class="editflow-credit">Batch video-editing automation — silence cuts, captions, highlights &amp; more</div>
+      <div class="editflow-subtitle">Batch video-editing automation — silence cuts, captions, highlights &amp; more</div>
     </div>
   </div>
-  <div class="editflow-credit">Developed by <b>Noor Ahmed Khan</b></div>
+  <div style="display:flex; align-items:center; gap:16px;">
+    <span class="editflow-badge"><span class="dot"></span>10 tools online</span>
+    <div class="editflow-credit">Developed by<br><b>Noor Ahmed Khan</b></div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -127,17 +248,25 @@ def export_settings_widget(key_prefix):
 # SIDEBAR — theme toggle + processing history
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("### ⚙️ Settings")
+    st.markdown(f"""
+    <div class="sidebar-brand">
+      <div class="mark">🎬</div>
+      <div class="sidebar-brand-text">EditFlow</div>
+    </div>
+    <div style="font-size:12px; color:{T['muted2']}; margin-bottom:4px;">Video editing automation suite</div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-section-label">⚙️ Appearance</div>', unsafe_allow_html=True)
     theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.theme == "dark" else 1,
-                             horizontal=True)
+                             horizontal=True, label_visibility="collapsed")
     if theme_choice != st.session_state.theme:
         st.session_state.theme = theme_choice
         st.rerun()
 
-    st.markdown("---")
-    st.markdown("### 📜 Session History")
+    st.markdown('<div class="sidebar-section-label">📜 Session History</div>', unsafe_allow_html=True)
     if not st.session_state.history:
-        st.caption("Nothing processed yet this session.")
+        st.markdown('<div class="history-empty">Nothing processed yet this session.<br>Run a tool to see it here.</div>',
+                     unsafe_allow_html=True)
     else:
         for item in st.session_state.history:
             st.markdown(
@@ -145,6 +274,21 @@ with st.sidebar:
                 unsafe_allow_html=True,
             )
 
+    st.markdown(f"""
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid {T['line_soft']}; font-size:11px; color:{T['muted2']}; text-align:center;">
+      EditFlow v1.0 · Built by <b style="color:{T['accent_bright']}">Noor Ahmed Khan</b>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+st.markdown("""
+<div class="hero-strip">
+  <span class="pill">🎯 <b>10 tools</b> in one dashboard</span>
+  <span class="pill">📦 <b>Batch</b> processing</span>
+  <span class="pill">👀 <b>Live</b> before/after preview</span>
+  <span class="pill">🖥 Runs <b>fully offline</b></span>
+</div>
+""", unsafe_allow_html=True)
 
 tabs = st.tabs([
     "⚡ Full Pipeline", "🔇 Silence Cuts", "🖼 Thumbnails", "🏷 Watermark", "📋 Video Info",
@@ -482,3 +626,12 @@ with tabs[9]:
                 st.download_button(f"Download .srt — {file.name}", f,
                                     file_name=f"{file.name}_captions.srt", key=f"dlcap_{file.name}")
             log_history("Generated captions", f"{file.name} — {len(segments)} segments")
+
+# ---------------------------------------------------------------------------
+# FOOTER
+# ---------------------------------------------------------------------------
+st.markdown(f"""
+<div class="editflow-footer">
+  🎬 <b>EditFlow</b> — Batch video-editing automation, built by <b>Noor Ahmed Khan</b>
+</div>
+""", unsafe_allow_html=True)
