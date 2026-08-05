@@ -31,13 +31,45 @@ if "history" not in st.session_state:
     st.session_state.history = []
 
 
-def log_history(action, detail=""):
+def log_history(action, detail="", toast_icon="✅"):
     st.session_state.history.insert(0, {
         "time": datetime.datetime.now().strftime("%H:%M:%S"),
         "action": action,
         "detail": detail,
     })
     st.session_state.history = st.session_state.history[:20]
+    st.toast(f"**{action}** — {detail}" if detail else action, icon=toast_icon)
+
+
+# ---------------------------------------------------------------------------
+# ICONS — inline SVG (stroke-based), used instead of emoji throughout the UI
+# ---------------------------------------------------------------------------
+ICON_PATHS = {
+    "zap": '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    "volume-x": '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>',
+    "image": '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+    "tag": '<path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.58 3.24L4 3.24A1 1 0 0 0 3 4.24L3 9.83A2 2 0 0 0 3.59 11.24L13.17 20.83a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    "clipboard": '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/>',
+    "folder": '<path d="M4 4h5l2 2h9a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/>',
+    "film": '<rect x="2" y="3" width="20" height="18" rx="2"/><line x1="7" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="17" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/>',
+    "clapperboard": '<path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="M6.2 5.3 7 9"/><path d="M12.4 3.4 13 7"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+    "palette": '<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.8-.4-1.1-.2-.3-.4-.6-.4-1 0-.8.7-1.4 1.5-1.4H16c3.3 0 6-2.7 6-6 0-4.9-4.5-9-10-9Z"/>',
+    "captions": '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h1.5a1.5 1.5 0 1 0 0-3H7v3Z"/><path d="M13.5 12h2M13.5 15h2"/>',
+    "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>',
+    "history": '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
+    "check-circle": '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    "alert-circle": '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    "inbox": '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
+    "home": '<path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
+    "arrow-right": '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+}
+
+
+def icon(name, size=17, color="currentColor", stroke_width=2):
+    body = ICON_PATHS.get(name, ICON_PATHS["zap"])
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
+            f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="{stroke_width}" '
+            f'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">{body}</svg>')
 
 
 THEMES = {
@@ -110,22 +142,56 @@ p, span, label, .stMarkdown{{ color:{T['text']}; }}
 .editflow-credit{{ font-size:12px; color:{T['muted']}; text-align:right; }}
 .editflow-credit b{{ color:{T['accent_bright']}; }}
 
-/* ---------- Nav tabs styled as a real top nav bar ---------- */
-.stTabs [data-baseweb="tab-list"]{{
-  gap:2px; background:{T['surface']}; padding:8px; border-radius:14px;
-  border:1px solid {T['line_soft']}; flex-wrap:wrap; box-shadow:{T['shadow']}; margin-bottom:8px;
+/* ---------- Website-style top navbar (real buttons, not st.tabs) ---------- */
+.navbar-wrap{{
+  background:{T['surface']}; border:1px solid {T['line_soft']}; border-radius:14px;
+  padding:8px 10px; box-shadow:{T['shadow']}; margin-bottom:20px;
 }}
-.stTabs [data-baseweb="tab"]{{
-  background:transparent; border-radius:9px; color:{T['muted']}; padding:11px 18px;
-  font-weight:600; font-size:14px; transition:all 0.15s ease;
+.navbar-wrap div[data-testid="stHorizontalBlock"]{{ flex-wrap:wrap; row-gap:4px; }}
+.navbar-wrap div[data-testid="column"]{{ padding:0 2px !important; min-width:100px; }}
+.navbar-wrap .stButton{{ margin:0; }}
+.navbar-wrap .stButton button{{
+  background:transparent !important; color:{T['muted']} !important; border:none !important;
+  box-shadow:none !important; font-weight:600 !important; font-size:13px !important;
+  padding:10px 6px !important; border-radius:9px !important; white-space:nowrap !important;
+  transform:none !important; transition:background 0.15s ease, color 0.15s ease !important;
 }}
-.stTabs [data-baseweb="tab"]:hover{{ background:{T['surface2']}; color:{T['text']}; }}
-.stTabs [aria-selected="true"]{{
+.navbar-wrap .stButton button:hover{{
+  background:{T['surface2']} !important; color:{T['text']} !important;
+}}
+.navbar-wrap .stButton button[kind="primary"]{{
   background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important;
-  box-shadow:0 4px 14px rgba(45,212,191,0.25);
+  box-shadow:0 4px 14px rgba(45,212,191,0.25) !important;
 }}
-.stTabs [data-baseweb="tab-highlight"]{{ display:none; }}
-.stTabs [data-baseweb="tab-border"]{{ display:none; }}
+.navbar-wrap .stButton button[kind="primary"]:hover{{
+  background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important;
+}}
+
+/* ---------- Dashboard / landing tool grid ---------- */
+.tool-card{{
+  background:{T['surface']}; border:1px solid {T['line_soft']}; border-radius:14px;
+  padding:18px 16px 14px 16px; margin-bottom:8px; transition:transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  min-height:132px;
+}}
+.tool-card:hover{{ transform:translateY(-2px); box-shadow:{T['glow']}; border-color:{T['accent']}44; }}
+.tool-card-icon{{
+  width:38px; height:38px; border-radius:10px; background:{T['surface2']};
+  display:flex; align-items:center; justify-content:center; color:{T['accent_bright']}; margin-bottom:10px;
+}}
+.tool-card-title{{ font-size:14.5px; font-weight:700; color:{T['text']}; margin-bottom:4px; }}
+.tool-card-desc{{ font-size:12px; color:{T['muted']}; line-height:1.45; min-height:48px; }}
+
+/* ---------- Empty state / friendly error cards ---------- */
+.empty-state{{
+  text-align:center; padding:32px 20px; background:{T['surface2']}; border:1px dashed {T['line']};
+  border-radius:12px; color:{T['muted']}; font-size:13px; margin:10px 0;
+}}
+.empty-state svg{{ color:{T['muted2']}; margin-bottom:8px; }}
+.error-card{{
+  background:{T['surface2']}; border:1px solid #FB718544; border-left:4px solid #FB7185;
+  border-radius:10px; padding:14px 16px; margin:10px 0; color:{T['text']}; font-size:13.5px;
+}}
+.error-card b{{ color:#FB7185; }}
 
 /* ---------- Cards ---------- */
 .card{{
@@ -176,6 +242,12 @@ div[data-testid="stMetricValue"]{{ color:{T['accent_bright']} !important; }}
 .stDataFrame{{ border-radius:12px; overflow:hidden; border:1px solid {T['line_soft']}; }}
 .stProgress > div > div{{ background:{T['accent_grad']} !important; }}
 
+div[data-testid="stImage"]{{
+  border-radius:10px; overflow:hidden; transition:transform 0.15s ease, box-shadow 0.15s ease;
+}}
+div[data-testid="stImage"]:hover{{ transform:scale(1.02); box-shadow:{T['shadow']}; }}
+div[data-testid="stImage"] img{{ border-radius:10px; }}
+
 /* ---------- Sidebar ---------- */
 .sidebar-brand{{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }}
 .sidebar-brand .mark{{
@@ -213,14 +285,14 @@ div[data-testid="stMetricValue"]{{ color:{T['accent_bright']} !important; }}
 st.markdown(f"""
 <div class="editflow-header">
   <div class="editflow-logo">
-    <div class="mark">🎬</div>
+    <div class="mark">{icon('clapperboard', 20, '#062A26')}</div>
     <div>
       <div class="editflow-title">Edit<span>Flow</span></div>
       <div class="editflow-subtitle">Batch video-editing automation — silence cuts, captions, highlights &amp; more</div>
     </div>
   </div>
   <div style="display:flex; align-items:center; gap:16px;">
-    <span class="editflow-badge"><span class="dot"></span>10 tools online</span>
+    <span class="editflow-badge">{icon('check-circle', 13)} 10 tools online</span>
     <div class="editflow-credit">Developed by<br><b>Noor Ahmed Khan</b></div>
   </div>
 </div>
@@ -250,27 +322,27 @@ def export_settings_widget(key_prefix):
 with st.sidebar:
     st.markdown(f"""
     <div class="sidebar-brand">
-      <div class="mark">🎬</div>
+      <div class="mark">{icon('clapperboard', 15, '#062A26')}</div>
       <div class="sidebar-brand-text">EditFlow</div>
     </div>
     <div style="font-size:12px; color:{T['muted2']}; margin-bottom:4px;">Video editing automation suite</div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-section-label">⚙️ Appearance</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sidebar-section-label">{icon("settings", 13)} Appearance</div>', unsafe_allow_html=True)
     theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.theme == "dark" else 1,
                              horizontal=True, label_visibility="collapsed")
     if theme_choice != st.session_state.theme:
         st.session_state.theme = theme_choice
         st.rerun()
 
-    st.markdown('<div class="sidebar-section-label">📜 Session History</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sidebar-section-label">{icon("history", 13)} Session Workspace</div>', unsafe_allow_html=True)
     if not st.session_state.history:
-        st.markdown('<div class="history-empty">Nothing processed yet this session.<br>Run a tool to see it here.</div>',
+        st.markdown(f'<div class="history-empty">{icon("inbox", 22)}<br>Nothing processed yet this session.<br>Run a tool to see it here.</div>',
                      unsafe_allow_html=True)
     else:
         for item in st.session_state.history:
             st.markdown(
-                f'<div class="history-item">{item["time"]} — <b>{item["action"]}</b><br>{item["detail"]}</div>',
+                f'<div class="history-item">{icon("check-circle", 12)} {item["time"]} — <b>{item["action"]}</b><br>{item["detail"]}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -281,25 +353,104 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
-st.markdown("""
+st.markdown(f"""
 <div class="hero-strip">
-  <span class="pill">🎯 <b>10 tools</b> in one dashboard</span>
-  <span class="pill">📦 <b>Batch</b> processing</span>
-  <span class="pill">👀 <b>Live</b> before/after preview</span>
-  <span class="pill">🖥 Runs <b>fully offline</b></span>
+  <span class="pill">{icon('zap', 14)} <b>10 tools</b> in one dashboard</span>
+  <span class="pill">{icon('folder', 14)} <b>Batch</b> processing</span>
+  <span class="pill">{icon('image', 14)} <b>Live</b> before/after preview</span>
+  <span class="pill">{icon('check-circle', 14)} Runs <b>fully offline</b></span>
 </div>
 """, unsafe_allow_html=True)
 
-tabs = st.tabs([
-    "⚡ Full Pipeline", "🔇 Silence Cuts", "🖼 Thumbnails", "🏷 Watermark", "📋 Video Info",
-    "📁 Batch Rename", "🎞 Scene Detect", "🎬 Highlight Reel", "🎨 Color Grade", "📝 Captions",
-])
+# ---------------------------------------------------------------------------
+# TOP NAVBAR — real website-style horizontal nav (not Streamlit's st.tabs)
+# ---------------------------------------------------------------------------
+NAV_ITEMS = [
+    ("home", "🏠", "Dashboard"),
+    ("pipeline", "⚡", "Full Pipeline"),
+    ("silence", "🔇", "Silence Cuts"),
+    ("thumbs", "🖼", "Thumbnails"),
+    ("watermark", "🏷", "Watermark"),
+    ("info", "📋", "Video Info"),
+    ("rename", "📁", "Batch Rename"),
+    ("scene", "🎞", "Scene Detect"),
+    ("highlight", "🎬", "Highlight Reel"),
+    ("grade", "🎨", "Color Grade"),
+    ("captions", "📝", "Captions"),
+]
+
+if "active_page" not in st.session_state:
+    st.session_state.active_page = "home"
+
+# Rendered as real Streamlit buttons laid out in a horizontal row (styled via
+# CSS below to look like a website nav bar), since Streamlit has no native
+# way to run a JS onclick callback without a custom component.
+st.markdown('<div class="navbar-wrap">', unsafe_allow_html=True)
+nav_cols = st.columns(len(NAV_ITEMS))
+for col, (key, emoji_icon, label) in zip(nav_cols, NAV_ITEMS):
+    with col:
+        is_active = st.session_state.active_page == key
+        btn_label = f"{emoji_icon}  {label}"
+        if st.button(btn_label, key=f"nav_{key}", use_container_width=True,
+                     type="primary" if is_active else "secondary"):
+            st.session_state.active_page = key
+            st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+active = st.session_state.active_page
+
+# ---------------------------------------------------------------------------
+# TOOL CATALOG — used by the dashboard/landing grid
+# ---------------------------------------------------------------------------
+TOOL_CATALOG = [
+    ("pipeline", "zap", "Full Pipeline", "Silence removal → scene detection → thumbnails → captions in one pass."),
+    ("silence", "volume-x", "Silence Cuts", "Finds dead-air gaps in your audio track automatically."),
+    ("thumbs", "image", "Thumbnails", "Scores frames by sharpness + contrast to find the best freeze-frame."),
+    ("watermark", "tag", "Watermark", "Stamps a logo onto your videos, batch-applied across clips."),
+    ("info", "clipboard", "Video Info", "Duration, resolution, codec & size for a whole folder at a glance."),
+    ("rename", "folder", "Batch Rename", "Sorts raw footage into date-based folders with consistent naming."),
+    ("scene", "film", "Scene Detect", "Flags likely cut points by comparing frame color histograms."),
+    ("highlight", "clapperboard", "Highlight Reel", "Auto-stitches the loudest, most motion-heavy chunks into a reel."),
+    ("grade", "palette", "Color Grade", "Applies a consistent look across clips using built-in presets."),
+    ("captions", "captions", "Captions", "Transcribes speech into a ready-to-import .srt file, fully offline."),
+]
+
+if active == "home":
+    st.markdown(f"""
+    <div class="card" style="margin-bottom:24px;">
+      <h4 style="font-size:20px;">{icon('home', 22)}&nbsp; Welcome back, Noor 👋</h4>
+      <p>Pick a tool below to get started, or run the Full Pipeline to chain everything together in one pass.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    grid_cols = st.columns(5)
+    for i, (key, icon_name, title, desc) in enumerate(TOOL_CATALOG):
+        with grid_cols[i % 5]:
+            st.markdown(f"""
+            <div class="tool-card">
+              <div class="tool-card-icon">{icon(icon_name, 22)}</div>
+              <div class="tool-card-title">{title}</div>
+              <div class="tool-card-desc">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Open  →", key=f"open_{key}", use_container_width=True):
+                st.session_state.active_page = key
+                st.rerun()
+
+    st.markdown(f"""
+    <div class="card" style="margin-top:8px;">
+      <h4>{icon('history', 17)}&nbsp; Your session workspace</h4>
+      <p>Everything you process below is tracked here for this browser session — refreshing the page clears it.
+      For persistent storage, user accounts, or shareable links, this app would need real backend infrastructure
+      (a database + cloud storage) connected to it.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # 0. FULL PIPELINE
 # ---------------------------------------------------------------------------
-with tabs[0]:
-    st.markdown('<div class="card"><h4>Full EditFlow Pipeline</h4>'
+if active == "pipeline":
+    st.markdown(f'<div class="card"><h4>{icon("zap", 18)}&nbsp; Full EditFlow Pipeline</h4>'
                 '<p>Runs silence removal → scene detection → thumbnails → captions in one pass, '
                 'instead of using each tool separately.</p></div>', unsafe_allow_html=True)
 
@@ -317,50 +468,55 @@ with tabs[0]:
     resolution, quality = export_settings_widget("pipeline")
 
     if file and st.button("Run Full Pipeline", key="btn_pipeline"):
-        path = save_upload(file)
-        out_dir = tempfile.mkdtemp()
-        progress_bar = st.progress(0, text="Starting...")
+        try:
+            path = save_upload(file)
+            out_dir = tempfile.mkdtemp()
+            progress_bar = st.progress(0, text="Starting...")
 
-        def update_progress(step, frac):
-            progress_bar.progress(frac, text=step)
+            def update_progress(step, frac):
+                progress_bar.progress(frac, text=step)
 
-        result = pipeline.run_pipeline(
-            path, out_dir,
-            silence_thresh_db=thresh, min_silence_len=min_len,
-            generate_captions=want_captions, caption_model=caption_model,
-            resolution=resolution, quality=quality,
-            progress_callback=update_progress,
-        )
-        log_history("Ran full pipeline", f"{file.name} — {len(result['silences_removed'])} silences removed")
+            result = pipeline.run_pipeline(
+                path, out_dir,
+                silence_thresh_db=thresh, min_silence_len=min_len,
+                generate_captions=want_captions, caption_model=caption_model,
+                resolution=resolution, quality=quality,
+                progress_callback=update_progress,
+            )
+            log_history("Ran full pipeline", f"{file.name} — {len(result['silences_removed'])} silences removed")
 
-        st.success("Pipeline complete!")
-        st.video(result["trimmed_video_path"])
-        with open(result["trimmed_video_path"], "rb") as f:
-            st.download_button("Download final video", f, file_name="editflowed.mp4")
+            st.success("Pipeline complete!")
+            st.video(result["trimmed_video_path"])
+            with open(result["trimmed_video_path"], "rb") as f:
+                st.download_button("Download final video", f, file_name="editflowed.mp4")
 
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Silences removed", len(result["silences_removed"]))
-        m2.metric("Scene changes", len(result["scene_changes"]))
-        m3.metric("Thumbnails generated", len(result["thumbnails"]))
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Silences removed", len(result["silences_removed"]))
+            m2.metric("Scene changes", len(result["scene_changes"]))
+            m3.metric("Thumbnails generated", len(result["thumbnails"]))
 
-        if result["thumbnails"]:
-            st.markdown("**Thumbnail candidates**")
-            cols = st.columns(min(len(result["thumbnails"]), 5) or 1)
-            for i, r in enumerate(result["thumbnails"]):
-                with cols[i % len(cols)]:
-                    st.image(r["path"], caption=f"t={r['timestamp']}s")
+            if result["thumbnails"]:
+                st.markdown("**Thumbnail candidates**")
+                cols = st.columns(min(len(result["thumbnails"]), 5) or 1)
+                for i, r in enumerate(result["thumbnails"]):
+                    with cols[i % len(cols)]:
+                        st.image(r["path"], caption=f"t={r['timestamp']}s")
 
-        if result["captions"]:
-            st.markdown("**Captions**")
-            st.dataframe(result["captions"], use_container_width=True)
-            with open(result["captions_srt_path"], "rb") as f:
-                st.download_button("Download .srt", f, file_name="captions.srt")
+            if result["captions"]:
+                st.markdown("**Captions**")
+                st.dataframe(result["captions"], use_container_width=True)
+                with open(result["captions_srt_path"], "rb") as f:
+                    st.download_button("Download .srt", f, file_name="captions.srt")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 1. SILENCE / JUMP-CUT DETECTOR
 # ---------------------------------------------------------------------------
-with tabs[1]:
-    st.markdown('<div class="card"><h4>Silence / Jump-Cut Detector</h4>'
+if active == "silence":
+    st.markdown(f'<div class="card"><h4>{icon("volume-x", 18)}&nbsp; Silence / Jump-Cut Detector</h4>'
                 '<p>Finds dead-air gaps in your footage so you don\'t have to scrub for them by hand.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="silence_upload", accept_multiple_files=True)
@@ -375,63 +531,73 @@ with tabs[1]:
     export_trimmed = st.checkbox("Also export a trimmed video (not just detect)", value=False)
 
     if files and st.button("Detect Silences", key="btn_silence"):
-        for file in files:
-            st.markdown(f"#### {file.name}")
-            path = save_upload(file)
-            with st.spinner("Analyzing audio..."):
-                times, vols, duration = silence_detector.analyze_audio(path)
-                results = silence_detector.find_silences(path, silence_thresh_db=thresh, min_silence_len=min_len)
+        try:
+            for file in files:
+                st.markdown(f"#### {file.name}")
+                path = save_upload(file)
+                with st.spinner("Analyzing audio..."):
+                    times, vols, duration = silence_detector.analyze_audio(path)
+                    results = silence_detector.find_silences(path, silence_thresh_db=thresh, min_silence_len=min_len)
 
-            if len(times) > 0:
-                fig = visualizations.plot_waveform(times, vols, duration, results)
-                st.pyplot(fig, use_container_width=True)
+                if len(times) > 0:
+                    fig = visualizations.plot_waveform(times, vols, duration, results)
+                    st.pyplot(fig, use_container_width=True)
 
-            if results:
-                st.success(f"Found {len(results)} silent segment(s)")
-                st.dataframe(results, use_container_width=True)
-            else:
-                st.info("No silences found at this threshold.")
+                if results:
+                    st.success(f"Found {len(results)} silent segment(s)")
+                    st.dataframe(results, use_container_width=True)
+                else:
+                    st.markdown(f'<div class="empty-state">{icon("inbox", 26)}<br><b>No silences found</b><br>Try lowering the threshold or reducing the minimum silence length.</div>', unsafe_allow_html=True)
 
-            log_history("Detected silences", f"{file.name} — {len(results)} found")
+                log_history("Detected silences", f"{file.name} — {len(results)} found")
 
-            if export_trimmed and results:
-                out_path = os.path.join(tempfile.mkdtemp(), f"trimmed_{file.name}")
-                with st.spinner("Rendering trimmed video..."):
-                    silence_detector.build_trimmed_clip(path, results, out_path,
-                                                         resolution=resolution, quality=quality)
-                st.video(out_path)
-                with open(out_path, "rb") as f:
-                    st.download_button(f"Download trimmed — {file.name}", f,
-                                        file_name=f"trimmed_{file.name}", key=f"dl_{file.name}")
+                if export_trimmed and results:
+                    out_path = os.path.join(tempfile.mkdtemp(), f"trimmed_{file.name}")
+                    with st.spinner("Rendering trimmed video..."):
+                        silence_detector.build_trimmed_clip(path, results, out_path,
+                                                             resolution=resolution, quality=quality)
+                    st.video(out_path)
+                    with open(out_path, "rb") as f:
+                        st.download_button(f"Download trimmed — {file.name}", f,
+                                            file_name=f"trimmed_{file.name}", key=f"dl_{file.name}")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 2. THUMBNAIL GENERATOR
 # ---------------------------------------------------------------------------
-with tabs[2]:
-    st.markdown('<div class="card"><h4>Auto-Thumbnail Generator</h4>'
+if active == "thumbs":
+    st.markdown(f'<div class="card"><h4>{icon("image", 18)}&nbsp; Auto-Thumbnail Generator</h4>'
                 '<p>Scores frames by sharpness and contrast to surface the best freeze-frame candidates.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="thumb_upload", accept_multiple_files=True)
     n = st.slider("Number of candidates per video", 1, 10, 5)
 
     if files and st.button("Generate Thumbnails", key="btn_thumb"):
-        for file in files:
-            st.markdown(f"#### {file.name}")
-            path = save_upload(file)
-            out_dir = tempfile.mkdtemp()
-            with st.spinner("Scanning frames..."):
-                results = thumbnail_generator.generate_thumbnails(path, out_dir, num_candidates=n)
-            cols = st.columns(min(len(results), 5) or 1)
-            for i, r in enumerate(results):
-                with cols[i % len(cols)]:
-                    st.image(r["path"], caption=f"t={r['timestamp']}s · score={r['score']}")
-            log_history("Generated thumbnails", f"{file.name} — {len(results)} candidates")
+        try:
+            for file in files:
+                st.markdown(f"#### {file.name}")
+                path = save_upload(file)
+                out_dir = tempfile.mkdtemp()
+                with st.spinner("Scanning frames..."):
+                    results = thumbnail_generator.generate_thumbnails(path, out_dir, num_candidates=n)
+                cols = st.columns(min(len(results), 5) or 1)
+                for i, r in enumerate(results):
+                    with cols[i % len(cols)]:
+                        st.image(r["path"], caption=f"t={r['timestamp']}s · score={r['score']}")
+                log_history("Generated thumbnails", f"{file.name} — {len(results)} candidates")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 3. WATERMARK
 # ---------------------------------------------------------------------------
-with tabs[3]:
-    st.markdown('<div class="card"><h4>Batch Watermark / Logo Overlay</h4>'
+if active == "watermark":
+    st.markdown(f'<div class="card"><h4>{icon("tag", 18)}&nbsp; Batch Watermark / Logo Overlay</h4>'
                 '<p>Stamps a logo onto every uploaded video in the corner of your choice.</p></div>',
                 unsafe_allow_html=True)
     video_files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="wm_video", accept_multiple_files=True)
@@ -441,106 +607,126 @@ with tabs[3]:
     resolution, quality = export_settings_widget("wm")
 
     if video_files and logo_file and st.button("Apply Watermark", key="btn_wm"):
-        lpath = save_upload(logo_file)
-        for video_file in video_files:
-            st.markdown(f"#### {video_file.name}")
-            vpath = save_upload(video_file)
-            out_path = os.path.join(tempfile.mkdtemp(), f"watermarked_{video_file.name}")
-            with st.spinner("Rendering..."):
-                watermark.apply_watermark(vpath, lpath, out_path, position=position,
-                                           opacity=opacity, resolution=resolution, quality=quality)
+        try:
+            lpath = save_upload(logo_file)
+            for video_file in video_files:
+                st.markdown(f"#### {video_file.name}")
+                vpath = save_upload(video_file)
+                out_path = os.path.join(tempfile.mkdtemp(), f"watermarked_{video_file.name}")
+                with st.spinner("Rendering..."):
+                    watermark.apply_watermark(vpath, lpath, out_path, position=position,
+                                               opacity=opacity, resolution=resolution, quality=quality)
 
-            colA, colB = st.columns(2)
-            with colA:
-                st.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
-                st.video(vpath)
-            with colB:
-                st.markdown('<div class="compare-label">After</div>', unsafe_allow_html=True)
-                st.video(out_path)
+                colA, colB = st.columns(2)
+                with colA:
+                    st.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
+                    st.video(vpath)
+                with colB:
+                    st.markdown('<div class="compare-label">After</div>', unsafe_allow_html=True)
+                    st.video(out_path)
 
-            with open(out_path, "rb") as f:
-                st.download_button(f"Download — {video_file.name}", f,
-                                    file_name=f"watermarked_{video_file.name}", key=f"dlwm_{video_file.name}")
-            log_history("Applied watermark", video_file.name)
+                with open(out_path, "rb") as f:
+                    st.download_button(f"Download — {video_file.name}", f,
+                                        file_name=f"watermarked_{video_file.name}", key=f"dlwm_{video_file.name}")
+                log_history("Applied watermark", video_file.name)
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 4. VIDEO INFO REPORT
 # ---------------------------------------------------------------------------
-with tabs[4]:
-    st.markdown('<div class="card"><h4>Video Info Report</h4>'
+if active == "info":
+    st.markdown(f'<div class="card"><h4>{icon("clipboard", 18)}&nbsp; Video Info Report</h4>'
                 '<p>Upload a batch of clips to see duration, resolution, codec, and total footage at a glance.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload one or more videos", type=["mp4", "mov"], accept_multiple_files=True, key="info_upload")
 
     if files and st.button("Generate Report", key="btn_info"):
-        folder = tempfile.mkdtemp()
-        for f in files:
-            with open(os.path.join(folder, f.name), "wb") as out:
-                out.write(f.read())
-        rows, totals = video_info.generate_report(folder)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Clips", totals["clip_count"])
-        c2.metric("Total Duration", f"{totals['total_duration_sec']}s")
-        c3.metric("Total Size", f"{totals['total_size_mb']} MB")
-        st.dataframe(rows, use_container_width=True)
-        log_history("Generated video info report", f"{totals['clip_count']} clip(s)")
+        try:
+            folder = tempfile.mkdtemp()
+            for f in files:
+                with open(os.path.join(folder, f.name), "wb") as out:
+                    out.write(f.read())
+            rows, totals = video_info.generate_report(folder)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Clips", totals["clip_count"])
+            c2.metric("Total Duration", f"{totals['total_duration_sec']}s")
+            c3.metric("Total Size", f"{totals['total_size_mb']} MB")
+            st.dataframe(rows, use_container_width=True)
+            log_history("Generated video info report", f"{totals['clip_count']} clip(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 5. BATCH RENAME
 # ---------------------------------------------------------------------------
-with tabs[5]:
-    st.markdown('<div class="card"><h4>Batch Rename &amp; Organize</h4>'
+if active == "rename":
+    st.markdown(f'<div class="card"><h4>{icon("folder", 18)}&nbsp; Batch Rename &amp; Organize</h4>'
                 '<p>Sorts raw camera footage into date-based folders with consistent naming.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload raw footage", type=["mp4", "mov"], accept_multiple_files=True, key="rename_upload")
     project_name = st.text_input("Project name prefix", value="clip")
 
     if files and st.button("Organize Footage", key="btn_rename"):
-        folder = tempfile.mkdtemp()
-        for f in files:
-            with open(os.path.join(folder, f.name), "wb") as out:
-                out.write(f.read())
-        out_dir = tempfile.mkdtemp()
-        results = batch_rename.organize_footage(folder, out_dir, project_name=project_name)
-        st.success(f"Organized {len(results)} file(s)")
-        for old, new in results:
-            st.text(f"{os.path.basename(old)}  →  {new.replace(out_dir, '')}")
-        log_history("Organized footage", f"{len(results)} file(s)")
+        try:
+            folder = tempfile.mkdtemp()
+            for f in files:
+                with open(os.path.join(folder, f.name), "wb") as out:
+                    out.write(f.read())
+            out_dir = tempfile.mkdtemp()
+            results = batch_rename.organize_footage(folder, out_dir, project_name=project_name)
+            st.success(f"Organized {len(results)} file(s)")
+            for old, new in results:
+                st.text(f"{os.path.basename(old)}  →  {new.replace(out_dir, '')}")
+            log_history("Organized footage", f"{len(results)} file(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 6. SCENE DETECTOR
 # ---------------------------------------------------------------------------
-with tabs[6]:
-    st.markdown('<div class="card"><h4>Scene Change Detector</h4>'
+if active == "scene":
+    st.markdown(f'<div class="card"><h4>{icon("film", 18)}&nbsp; Scene Change Detector</h4>'
                 '<p>Flags likely cut points by comparing color histograms between frames.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="scene_upload", accept_multiple_files=True)
     sensitivity = st.slider("Sensitivity (lower = more cuts detected)", 0.1, 0.9, 0.5)
 
     if files and st.button("Detect Scene Changes", key="btn_scene"):
-        for file in files:
-            st.markdown(f"#### {file.name}")
-            path = save_upload(file)
-            with st.spinner("Scanning..."):
-                changes = scene_detector.detect_scene_changes(path, threshold=sensitivity)
-                _, _, duration = silence_detector.analyze_audio(path)
+        try:
+            for file in files:
+                st.markdown(f"#### {file.name}")
+                path = save_upload(file)
+                with st.spinner("Scanning..."):
+                    changes = scene_detector.detect_scene_changes(path, threshold=sensitivity)
+                    _, _, duration = silence_detector.analyze_audio(path)
 
-            if duration:
-                fig = visualizations.plot_timeline(duration, markers=changes, marker_label="Scene change")
-                st.pyplot(fig, use_container_width=True)
+                if duration:
+                    fig = visualizations.plot_timeline(duration, markers=changes, marker_label="Scene change")
+                    st.pyplot(fig, use_container_width=True)
 
-            if changes:
-                st.success(f"Detected {len(changes)} scene change(s)")
-                st.write(changes)
-            else:
-                st.info("No scene changes detected at this sensitivity.")
-            log_history("Detected scene changes", f"{file.name} — {len(changes)} found")
+                if changes:
+                    st.success(f"Detected {len(changes)} scene change(s)")
+                    st.write(changes)
+                else:
+                    st.markdown(f'<div class="empty-state">{icon("inbox", 26)}<br><b>No scene changes detected</b><br>Try lowering the sensitivity slider for more cuts.</div>', unsafe_allow_html=True)
+                log_history("Detected scene changes", f"{file.name} — {len(changes)} found")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 7. HIGHLIGHT REEL
 # ---------------------------------------------------------------------------
-with tabs[7]:
-    st.markdown('<div class="card"><h4>Highlight Reel Auto-Generator</h4>'
+if active == "highlight":
+    st.markdown(f'<div class="card"><h4>{icon("clapperboard", 18)}&nbsp; Highlight Reel Auto-Generator</h4>'
                 '<p>Keeps the loudest, most motion-heavy chunks and stitches them into a rough-cut reel.</p></div>',
                 unsafe_allow_html=True)
     file = st.file_uploader("Upload a video", type=["mp4", "mov"], key="highlight_upload")
@@ -552,28 +738,33 @@ with tabs[7]:
     resolution, quality = export_settings_widget("hl")
 
     if file and st.button("Generate Highlight Reel", key="btn_highlight"):
-        path = save_upload(file)
-        out_path = os.path.join(tempfile.mkdtemp(), "highlight_reel.mp4")
-        with st.spinner("Scoring & rendering..."):
-            kept = highlight_reel.generate_highlight_reel(path, out_path, top_fraction=top_fraction,
-                                                            resolution=resolution, quality=quality)
-            _, _, duration = silence_detector.analyze_audio(path)
+        try:
+            path = save_upload(file)
+            out_path = os.path.join(tempfile.mkdtemp(), "highlight_reel.mp4")
+            with st.spinner("Scoring & rendering..."):
+                kept = highlight_reel.generate_highlight_reel(path, out_path, top_fraction=top_fraction,
+                                                                resolution=resolution, quality=quality)
+                _, _, duration = silence_detector.analyze_audio(path)
 
-        if duration:
-            fig = visualizations.plot_timeline(duration, segments=kept, segment_label="Kept")
-            st.pyplot(fig, use_container_width=True)
+            if duration:
+                fig = visualizations.plot_timeline(duration, segments=kept, segment_label="Kept")
+                st.pyplot(fig, use_container_width=True)
 
-        st.success(f"Kept {len(kept)} chunk(s)")
-        st.video(out_path)
-        with open(out_path, "rb") as f:
-            st.download_button("Download highlight reel", f, file_name="highlight_reel.mp4")
-        log_history("Generated highlight reel", f"{file.name} — {len(kept)} chunks kept")
+            st.success(f"Kept {len(kept)} chunk(s)")
+            st.video(out_path)
+            with open(out_path, "rb") as f:
+                st.download_button("Download highlight reel", f, file_name="highlight_reel.mp4")
+            log_history("Generated highlight reel", f"{file.name} — {len(kept)} chunks kept")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 8. COLOR GRADE
 # ---------------------------------------------------------------------------
-with tabs[8]:
-    st.markdown('<div class="card"><h4>Color Grading Preset Applier</h4>'
+if active == "grade":
+    st.markdown(f'<div class="card"><h4>{icon("palette", 18)}&nbsp; Color Grading Preset Applier</h4>'
                 '<p>Applies a consistent look across clips using built-in presets.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="grade_upload", accept_multiple_files=True)
@@ -581,31 +772,36 @@ with tabs[8]:
     resolution, quality = export_settings_widget("grade")
 
     if files and st.button("Apply Color Grade", key="btn_grade"):
-        for file in files:
-            st.markdown(f"#### {file.name}")
-            path = save_upload(file)
-            out_path = os.path.join(tempfile.mkdtemp(), f"graded_{file.name}")
-            with st.spinner("Rendering..."):
-                color_grade.apply_grade(path, out_path, preset=preset, resolution=resolution, quality=quality)
+        try:
+            for file in files:
+                st.markdown(f"#### {file.name}")
+                path = save_upload(file)
+                out_path = os.path.join(tempfile.mkdtemp(), f"graded_{file.name}")
+                with st.spinner("Rendering..."):
+                    color_grade.apply_grade(path, out_path, preset=preset, resolution=resolution, quality=quality)
 
-            colA, colB = st.columns(2)
-            with colA:
-                st.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
-                st.video(path)
-            with colB:
-                st.markdown(f'<div class="compare-label">After — {preset}</div>', unsafe_allow_html=True)
-                st.video(out_path)
+                colA, colB = st.columns(2)
+                with colA:
+                    st.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
+                    st.video(path)
+                with colB:
+                    st.markdown(f'<div class="compare-label">After — {preset}</div>', unsafe_allow_html=True)
+                    st.video(out_path)
 
-            with open(out_path, "rb") as f:
-                st.download_button(f"Download — {file.name}", f,
-                                    file_name=f"graded_{file.name}", key=f"dlgr_{file.name}")
-            log_history("Applied color grade", f"{file.name} — {preset}")
+                with open(out_path, "rb") as f:
+                    st.download_button(f"Download — {file.name}", f,
+                                        file_name=f"graded_{file.name}", key=f"dlgr_{file.name}")
+                log_history("Applied color grade", f"{file.name} — {preset}")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # 9. AI CAPTIONS
 # ---------------------------------------------------------------------------
-with tabs[9]:
-    st.markdown('<div class="card"><h4>AI Auto-Captions</h4>'
+if active == "captions":
+    st.markdown(f'<div class="card"><h4>{icon("captions", 18)}&nbsp; AI Auto-Captions</h4>'
                 '<p>Transcribes speech into a ready-to-import .srt file using OpenAI Whisper (runs offline).</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="caption_upload", accept_multiple_files=True)
@@ -613,19 +809,24 @@ with tabs[9]:
                                help="Bigger = more accurate but slower")
 
     if files and st.button("Generate Captions", key="btn_captions"):
-        for file in files:
-            st.markdown(f"#### {file.name}")
-            path = save_upload(file)
-            out_path = os.path.join(tempfile.mkdtemp(), "captions.srt")
-            with st.spinner("Transcribing (this can take a minute)..."):
-                from modules import captions
-                segments = captions.generate_captions(path, out_path, model_size=model_size)
-            st.success(f"Generated {len(segments)} caption segment(s)")
-            st.dataframe(segments, use_container_width=True)
-            with open(out_path, "rb") as f:
-                st.download_button(f"Download .srt — {file.name}", f,
-                                    file_name=f"{file.name}_captions.srt", key=f"dlcap_{file.name}")
-            log_history("Generated captions", f"{file.name} — {len(segments)} segments")
+        try:
+            for file in files:
+                st.markdown(f"#### {file.name}")
+                path = save_upload(file)
+                out_path = os.path.join(tempfile.mkdtemp(), "captions.srt")
+                with st.spinner("Transcribing (this can take a minute)..."):
+                    from modules import captions
+                    segments = captions.generate_captions(path, out_path, model_size=model_size)
+                st.success(f"Generated {len(segments)} caption segment(s)")
+                st.dataframe(segments, use_container_width=True)
+                with open(out_path, "rb") as f:
+                    st.download_button(f"Download .srt — {file.name}", f,
+                                        file_name=f"{file.name}_captions.srt", key=f"dlcap_{file.name}")
+                log_history("Generated captions", f"{file.name} — {len(segments)} segments")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
 
 # ---------------------------------------------------------------------------
 # FOOTER
