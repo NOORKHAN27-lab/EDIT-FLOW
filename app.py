@@ -62,6 +62,7 @@ ICON_PATHS = {
     "inbox": '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
     "home": '<path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
     "arrow-right": '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
 }
 
 
@@ -70,6 +71,16 @@ def icon(name, size=17, color="currentColor", stroke_width=2):
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
             f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="{stroke_width}" '
             f'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">{body}</svg>')
+
+
+def hint(text):
+    """Small muted helper line shown under a control, explaining what it does."""
+    st.markdown(f'<div class="control-hint">{icon("info", 13)}<span>{text}</span></div>',
+                unsafe_allow_html=True)
+
+
+def section_label(text):
+    st.markdown(f'<div class="section-label">{text}</div>', unsafe_allow_html=True)
 
 
 THEMES = {
@@ -231,6 +242,50 @@ p, span, label, .stMarkdown{{ color:{T['text']}; }}
 div[data-testid="stFileUploaderDropzone"]{{
   background:{T['surface2']}; border:1.5px dashed {T['line']}; border-radius:12px;
 }}
+div[data-testid="stFileUploaderDropzone"] button{{
+  background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important; border:none !important;
+}}
+
+/* Force all widget labels to the theme text color, not Streamlit's default red */
+.stSlider label, .stSelectbox label, .stCheckbox label, .stRadio label,
+.stTextInput label, .stFileUploader label, .stNumberInput label{{
+  color:{T['text']} !important; font-weight:600 !important; font-size:13.5px !important;
+}}
+
+/* Slider — recolor from Streamlit's default red to the teal/purple accent */
+.stSlider [data-baseweb="slider"]{{ margin-top:6px; }}
+.stSlider [role="slider"]{{
+  background-color:{T['accent']} !important; border-color:{T['accent']} !important;
+  box-shadow:0 0 0 4px {T['accent']}22 !important;
+}}
+div[data-baseweb="slider"] > div > div{{ background:{T['accent_grad']} !important; }}
+div[data-baseweb="slider"] > div{{ background:{T['line']} !important; }}
+.stSlider [data-testid="stTickBarMin"], .stSlider [data-testid="stTickBarMax"]{{ color:{T['muted2']} !important; }}
+div[data-testid="stSliderThumbValue"]{{ color:{T['accent_bright']} !important; font-weight:700 !important; }}
+
+/* Checkbox + radio accent recolor */
+.stCheckbox [data-baseweb="checkbox"] span{{ border-color:{T['line']} !important; }}
+.stCheckbox [aria-checked="true"] span:first-child{{ background:{T['accent']} !important; border-color:{T['accent']} !important; }}
+.stRadio [aria-checked="true"] > div:first-child{{ background:{T['accent']} !important; border-color:{T['accent']} !important; }}
+
+/* Selectbox / dropdown restyle */
+div[data-baseweb="select"] > div{{
+  background:{T['surface2']} !important; border-color:{T['line']} !important; border-radius:9px !important;
+}}
+div[data-baseweb="select"] > div:hover{{ border-color:{T['accent']} !important; }}
+div[data-baseweb="popover"] li{{ font-size:13px; }}
+
+/* Helper caption text under controls */
+.control-hint{{
+  font-size:12px; color:{T['muted']}; margin:-6px 0 14px 0; line-height:1.5;
+  display:flex; align-items:flex-start; gap:6px;
+}}
+.control-hint svg{{ flex-shrink:0; margin-top:1px; color:{T['muted2']}; }}
+.section-label{{
+  font-size:12.5px; font-weight:700; color:{T['muted']}; text-transform:uppercase;
+  letter-spacing:0.05em; margin:22px 0 4px 0; padding-top:12px; border-top:1px solid {T['line_soft']};
+}}
+
 .stSlider [data-baseweb="slider"]{{ margin-top:4px; }}
 div[data-testid="stMetric"]{{
   background:{T['surface']}; border:1px solid {T['line_soft']}; border-radius:12px; padding:14px 16px;
@@ -490,17 +545,27 @@ if active == "pipeline":
                 'instead of using each tool separately.</p></div>', unsafe_allow_html=True)
 
     file = st.file_uploader("Upload a video", type=["mp4", "mov"], key="pipeline_upload")
+    hint("Upload the raw footage you want tightened up — the pipeline works on one video at a time.")
     if file:
         st.markdown('<div class="compare-label">Preview</div>', unsafe_allow_html=True)
         st.video(file)
 
+    section_label("Silence removal")
     c1, c2 = st.columns(2)
     thresh = c1.slider("Silence threshold (dB)", -60, -10, -35, key="pipe_thresh")
     min_len = c2.slider("Minimum silence length (sec)", 0.2, 3.0, 0.6, key="pipe_minlen")
+    hint("Audio quieter than the threshold, for longer than the minimum length, gets cut out automatically.")
+
+    section_label("Captions (optional)")
     want_captions = st.checkbox("Also generate captions (slower)", value=False)
+    hint("Transcribes the trimmed video's speech into an .srt subtitle file using offline AI — adds extra processing time.")
     caption_model = st.selectbox("Caption model size", ["tiny", "base", "small"], index=1,
                                   disabled=not want_captions)
+    hint("Bigger models are more accurate but slower to run — \"base\" is a good default.")
+
+    section_label("Export")
     resolution, quality = export_settings_widget("pipeline")
+    hint("Controls the output video's resolution and compression — higher quality means a larger file.")
 
     if file and st.button("Run Full Pipeline", key="btn_pipeline"):
         try:
@@ -555,15 +620,21 @@ if active == "silence":
                 '<p>Finds dead-air gaps in your footage so you don\'t have to scrub for them by hand.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="silence_upload", accept_multiple_files=True)
+    hint("You can select multiple clips at once — each one is analyzed separately.")
     if files:
         st.markdown('<div class="compare-label">Preview — first file</div>', unsafe_allow_html=True)
         st.video(files[0])
 
+    section_label("Detection settings")
     col1, col2 = st.columns(2)
     thresh = col1.slider("Silence threshold (dB)", -60, -10, -35)
     min_len = col2.slider("Minimum silence length (sec)", 0.2, 3.0, 0.6)
+    hint("Lower (more negative) threshold = stricter about what counts as \"silent\". Raise the minimum length to ignore brief pauses.")
+
+    section_label("Export")
     resolution, quality = export_settings_widget("silence")
     export_trimmed = st.checkbox("Also export a trimmed video (not just detect)", value=False)
+    hint("Leave unchecked to just see where the gaps are — check this to actually render a shortened video with them removed.")
 
     if files and st.button("Detect Silences", key="btn_silence"):
         try:
@@ -608,7 +679,9 @@ if active == "thumbs":
                 '<p>Scores frames by sharpness and contrast to surface the best freeze-frame candidates.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="thumb_upload", accept_multiple_files=True)
+    hint("Works best on videos with varied shots — talking-head footage will score similarly across most frames.")
     n = st.slider("Number of candidates per video", 1, 10, 5)
+    hint("How many top-scoring frames to save per video — pick a few extra so you have options to choose from.")
 
     if files and st.button("Generate Thumbnails", key="btn_thumb"):
         try:
@@ -636,9 +709,16 @@ if active == "watermark":
                 '<p>Stamps a logo onto every uploaded video in the corner of your choice.</p></div>',
                 unsafe_allow_html=True)
     video_files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="wm_video", accept_multiple_files=True)
+    hint("Every video here gets the same logo and position applied in one batch run.")
     logo_file = st.file_uploader("Upload a logo (PNG)", type=["png"], key="wm_logo")
+    hint("Use a PNG with a transparent background for the cleanest result.")
+
+    section_label("Placement")
     position = st.selectbox("Position", list(watermark.POSITIONS.keys()))
     opacity = st.slider("Opacity", 0.1, 1.0, 0.7)
+    hint("Lower opacity makes the watermark more subtle and less distracting from the footage.")
+
+    section_label("Export")
     resolution, quality = export_settings_widget("wm")
 
     if video_files and logo_file and st.button("Apply Watermark", key="btn_wm"):
@@ -677,6 +757,7 @@ if active == "info":
                 '<p>Upload a batch of clips to see duration, resolution, codec, and total footage at a glance.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload one or more videos", type=["mp4", "mov"], accept_multiple_files=True, key="info_upload")
+    hint("Great for getting a quick snapshot of a whole shoot before you start editing.")
 
     if files and st.button("Generate Report", key="btn_info"):
         try:
@@ -704,7 +785,9 @@ if active == "rename":
                 '<p>Sorts raw camera footage into date-based folders with consistent naming.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload raw footage", type=["mp4", "mov"], accept_multiple_files=True, key="rename_upload")
+    hint("Upload footage straight off the camera — filenames like DSC001.mp4 work fine.")
     project_name = st.text_input("Project name prefix", value="clip")
+    hint("Files are renamed as {prefix}_{date}_{number} and sorted into folders by the date they were shot.")
 
     if files and st.button("Organize Footage", key="btn_rename"):
         try:
@@ -732,6 +815,7 @@ if active == "scene":
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="scene_upload", accept_multiple_files=True)
     sensitivity = st.slider("Sensitivity (lower = more cuts detected)", 0.1, 0.9, 0.5)
+    hint("Lower this if the tool is missing real cuts; raise it if it's flagging too many false positives.")
 
     if files and st.button("Detect Scene Changes", key="btn_scene"):
         try:
@@ -765,11 +849,16 @@ if active == "highlight":
                 '<p>Keeps the loudest, most motion-heavy chunks and stitches them into a rough-cut reel.</p></div>',
                 unsafe_allow_html=True)
     file = st.file_uploader("Upload a video", type=["mp4", "mov"], key="highlight_upload")
+    hint("Works on one video at a time — best for longer, single-take footage with varied energy.")
     if file:
         st.markdown('<div class="compare-label">Preview</div>', unsafe_allow_html=True)
         st.video(file)
 
+    section_label("Reel settings")
     top_fraction = st.slider("Keep top % of footage", 0.1, 0.8, 0.3)
+    hint("A lower percentage makes a tighter, punchier reel; higher keeps more of the original pacing.")
+
+    section_label("Export")
     resolution, quality = export_settings_widget("hl")
 
     if file and st.button("Generate Highlight Reel", key="btn_highlight"):
@@ -803,7 +892,11 @@ if active == "grade":
                 '<p>Applies a consistent look across clips using built-in presets.</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="grade_upload", accept_multiple_files=True)
+    hint("Same preset gets applied to every clip you upload here, in one batch.")
     preset = st.selectbox("Preset", list(color_grade.PRESETS.keys()))
+    hint("Cinematic darkens shadows for a filmic look; vibrant boosts saturation; muted mutes it down for a subtle grade.")
+
+    section_label("Export")
     resolution, quality = export_settings_widget("grade")
 
     if files and st.button("Apply Color Grade", key="btn_grade"):
@@ -840,8 +933,10 @@ if active == "captions":
                 '<p>Transcribes speech into a ready-to-import .srt file using OpenAI Whisper (runs offline).</p></div>',
                 unsafe_allow_html=True)
     files = st.file_uploader("Upload video(s)", type=["mp4", "mov"], key="caption_upload", accept_multiple_files=True)
+    hint("The first run downloads the AI model (~140MB) — after that it works fully offline.")
     model_size = st.selectbox("Model size", ["tiny", "base", "small"], index=1,
                                help="Bigger = more accurate but slower")
+    hint("\"Tiny\" is fastest for quick drafts; \"small\" gives noticeably better accuracy for accents or noisy audio.")
 
     if files and st.button("Generate Captions", key="btn_captions"):
         try:
