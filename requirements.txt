@@ -1,16 +1,19 @@
-# Pinned with ~= (compatible release) instead of == exact pins: this locks
-# out breaking major/minor version bumps (the real risk) while still
-# allowing safe patch updates (bug fixes, security patches) to install.
-# openai-whisper uses date-based versioning with no patch releases, so it's
-# pinned exactly.
-streamlit~=1.59
-moviepy~=2.1
-opencv-python-headless~=4.10
-numpy~=1.26
-matplotlib~=3.9
-openai-whisper==20231117
+streamlit>=1.35
+moviepy>=2.0
+opencv-python-headless>=4.8
+numpy>=1.24
+matplotlib>=3.8
+openai-whisper>=20231117
 
-# Note: ffmpeg is installed via packages.txt on Streamlit Cloud.
+# Note: exact/compatible-release pinning (==, ~=) was tried here but caused
+# install failures on this environment's Python version — some pinned
+# packages had no pre-built wheel available and/or conflicted with
+# transitive dependencies (torch/triton via openai-whisper). Loose ">="
+# constraints let the resolver pick versions that are actually installable
+# here. If you want tighter pinning later, run `pip freeze` on a working
+# deployment and copy those exact versions in.
+#
+# ffmpeg is installed via packages.txt on Streamlit Cloud.
 # For local development, install it separately:
 # - macOS:   brew install ffmpeg
 # - Ubuntu:  sudo apt install ffmpeg
