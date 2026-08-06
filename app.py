@@ -306,22 +306,27 @@ div[data-testid="stFileUploader"] section{{
 div[data-testid="stFileUploaderDropzone"]{{
   background:{T['surface2']} !important; border:1.5px dashed {T['line']} !important; border-radius:12px !important;
 }}
+div[data-testid="stFileUploaderDropzoneInstructions"],
+div[data-testid="stFileUploaderDropzoneInstructions"] *{{
+  color:{T['muted']} !important; opacity:1 !important;
+}}
 div[data-testid="stFileUploaderDropzone"] span,
 div[data-testid="stFileUploaderDropzone"] small,
-div[data-testid="stFileUploaderDropzone"] div{{ color:{T['muted']} !important; }}
+div[data-testid="stFileUploaderDropzone"] p,
+div[data-testid="stFileUploaderDropzone"] div{{ color:{T['muted']} !important; opacity:1 !important; }}
 div[data-testid="stFileUploaderDropzone"] button,
 div[data-testid="stFileUploader"] section button{{
   background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important; border:none !important;
 }}
 div[data-testid="stFileUploaderDropzone"] button *,
-div[data-testid="stFileUploader"] section button *{{ color:{T['accent_text_on']} !important; }}
+div[data-testid="stFileUploader"] section button *{{ color:{T['accent_text_on']} !important; opacity:1 !important; }}
 div[data-testid="stFileUploaderDropzone"] button:hover,
 div[data-testid="stFileUploader"] section button:hover{{
   background:{T['accent_grad']} !important; opacity:0.9;
 }}
 /* Uploaded file chip (name + size + remove button) shown after upload */
 [data-testid="stFileUploaderFile"]{{ background:{T['surface2']} !important; color:{T['text']} !important; }}
-[data-testid="stFileUploaderFile"] *{{ color:{T['text']} !important; }}
+[data-testid="stFileUploaderFile"] *{{ color:{T['text']} !important; opacity:1 !important; }}
 [data-testid="stFileUploaderFileName"]{{ color:{T['text']} !important; }}
 [data-testid="baseButton-minimal"]{{ color:{T['muted']} !important; }}
 
@@ -444,6 +449,21 @@ section[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover p{{ co
   text-align:center; font-size:11px; color:{T['muted']}; font-weight:700; letter-spacing:0.06em;
   text-transform:uppercase; margin-bottom:8px; background:{T['surface2']}; padding:5px; border-radius:6px;
 }}
+
+/* ---------- Toast notifications (st.toast) — force theme colors, since
+   Streamlit's native toast otherwise stays dark regardless of the app
+   theme, making the text unreadable in light mode ---------- */
+[data-testid="stToast"],
+div[data-baseweb="toast"],
+div[data-baseweb="snackbar"]{{
+  background:{T['surface']} !important; color:{T['text']} !important;
+  border:1px solid {T['line']} !important; box-shadow:{T['shadow']} !important;
+  border-radius:12px !important;
+}}
+[data-testid="stToast"] *,
+div[data-baseweb="toast"] *,
+div[data-baseweb="snackbar"] *{{ color:{T['text']} !important; }}
+[data-testid="stToastIcon"]{{ color:{T['accent']} !important; }}
 
 /* ---------- Footer ---------- */
 .editflow-footer{{
