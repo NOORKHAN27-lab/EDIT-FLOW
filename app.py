@@ -66,6 +66,7 @@ ICON_PATHS = {
     "home": '<path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
     "arrow-right": '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
     "info": '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
 }
 
 
@@ -75,6 +76,7 @@ ICON_LABELS = {
     "palette": "Color palette", "captions": "Captions", "settings": "Settings gear",
     "history": "History clock", "check-circle": "Checkmark", "alert-circle": "Warning",
     "inbox": "Empty inbox", "home": "Home", "arrow-right": "Arrow right", "info": "Info",
+    "link": "Chain link",
 }
 
 
@@ -147,8 +149,25 @@ html, body, [class*="css"] {{ font-family:'Inter', -apple-system, BlinkMacSystem
 #MainMenu, footer, header[data-testid="stHeader"]{{ background:transparent; }}
 .block-container{{ padding-top:1.6rem; max-width:1220px; }}
 
+/* Sidebar collapse/expand arrow — must always stay visible and clickable,
+   above our own header/cards. Covers both current and older Streamlit
+   testid names since this changed between versions. */
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"],
+button[data-testid="stBaseButton-headerNoPadding"]{{
+  background:{T['surface']} !important; border:1px solid {T['line']} !important;
+  border-radius:8px !important; z-index:999999 !important; opacity:1 !important;
+  visibility:visible !important; box-shadow:{T['shadow']} !important;
+}}
+[data-testid="collapsedControl"] svg,
+[data-testid="stSidebarCollapsedControl"] svg,
+button[data-testid="stBaseButton-headerNoPadding"] svg{{
+  color:{T['text']} !important; fill:{T['text']} !important;
+}}
+
 section[data-testid="stSidebar"]{{
   background:{T['surface']}; border-right:1px solid {T['line_soft']};
+  z-index:999998 !important;
 }}
 section[data-testid="stSidebar"] .block-container{{ padding-top:1.4rem; }}
 
@@ -474,7 +493,11 @@ div[data-baseweb="snackbar"] *{{ color:{T['text']} !important; }}
 
 /* ---------- Mobile responsiveness ---------- */
 @media (max-width: 640px){{
-  .block-container{{ padding-left:0.8rem !important; padding-right:0.8rem !important; padding-top:1rem !important; }}
+  [data-testid="collapsedControl"],
+  [data-testid="stSidebarCollapsedControl"]{{
+    top:0.6rem !important; left:0.6rem !important; width:2.4rem !important; height:2.4rem !important;
+  }}
+  .block-container{{ padding-left:0.8rem !important; padding-right:0.8rem !important; padding-top:3.2rem !important; }}
   .editflow-header{{ flex-direction:column; align-items:flex-start; gap:12px; padding:14px 16px; }}
   .editflow-header > div:last-child{{ width:100%; justify-content:space-between; }}
   .editflow-title{{ font-size:17px; }}
@@ -591,6 +614,7 @@ def export_settings_widget(key_prefix):
 NAV_ITEMS = [
     ("home", "home", "Dashboard"),
     ("pipeline", "zap", "Full Pipeline"),
+    ("combo", "link", "Custom Workflow"),
     ("silence", "volume-x", "Silence Cuts"),
     ("thumbs", "image", "Thumbnails"),
     ("watermark", "tag", "Watermark"),
@@ -631,7 +655,7 @@ with st.sidebar:
 
     st.markdown(f'<div class="sidebar-section-label">{icon("zap", 13)} Quick Access</div>', unsafe_allow_html=True)
     NAV_EMOJI = {
-        "home": "🏠", "zap": "⚡", "volume-x": "🔇", "image": "🖼", "tag": "🏷",
+        "home": "🏠", "zap": "⚡", "link": "🔗", "volume-x": "🔇", "image": "🖼", "tag": "🏷",
         "clipboard": "📋", "folder": "📁", "film": "🎞", "clapperboard": "🎬",
         "palette": "🎨", "captions": "📝",
     }
@@ -706,6 +730,7 @@ if active != "home":
 # ---------------------------------------------------------------------------
 TOOL_CATALOG = [
     ("pipeline", "zap", "Full Pipeline", "Silence removal → scene detection → thumbnails → captions in one pass."),
+    ("combo", "link", "Custom Workflow", "Pick any combo of tools — silence, watermark, grade, highlight — chained into one download."),
     ("silence", "volume-x", "Silence Cuts", "Finds dead-air gaps in your audio track automatically."),
     ("thumbs", "image", "Thumbnails", "Scores frames by sharpness + contrast to find the best freeze-frame."),
     ("watermark", "tag", "Watermark", "Stamps a logo onto your videos, batch-applied across clips."),
@@ -779,7 +804,7 @@ if active == "pipeline":
     resolution, quality = export_settings_widget("pipeline")
     hint("Controls the output video's resolution and compression — higher quality means a larger file.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if file and st.button("Run Full Pipeline", key="btn_pipeline"):
         if not validate_uploads(file):
             st.stop()
@@ -828,6 +853,211 @@ if active == "pipeline":
                 st.exception(e)
 
 # ---------------------------------------------------------------------------
+# 0.5 CUSTOM WORKFLOW — chain any combination of tools, one download at the end
+# ---------------------------------------------------------------------------
+if active == "combo":
+    st.markdown(f'<div class="card"><h4>{icon("link", 18)}&nbsp; Custom Workflow</h4>'
+                '<p>Pick any combination of steps below — they run in this order, each one working on the '
+                'previous step\'s result — and get a single .zip with everything at the end, instead of '
+                'downloading each tool\'s output separately.</p></div>', unsafe_allow_html=True)
+
+    combo_file = st.file_uploader("Upload a video", type=["mp4", "mov"], key="combo_upload")
+    hint("Works on one video at a time, run through whichever steps you turn on below.")
+    if combo_file:
+        st.markdown('<div class="compare-label">Preview</div>', unsafe_allow_html=True)
+        st.video(combo_file)
+
+    section_label("Steps to run — applied top to bottom")
+
+    do_silence = st.checkbox("1 · Remove silences", value=True, key="combo_do_silence")
+    if do_silence:
+        cs1, cs2 = st.columns(2)
+        combo_thresh = cs1.slider("Silence threshold (dB)", -60, -10, -35, key="combo_thresh")
+        combo_minlen = cs2.slider("Minimum silence length (sec)", 0.2, 3.0, 0.6, key="combo_minlen")
+
+    do_watermark = st.checkbox("2 · Apply watermark", value=False, key="combo_do_watermark")
+    combo_logo = None
+    if do_watermark:
+        combo_logo = st.file_uploader("Logo (PNG)", type=["png"], key="combo_logo")
+        cw1, cw2 = st.columns(2)
+        combo_position = cw1.selectbox("Position", list(watermark.POSITIONS.keys()), key="combo_wm_pos")
+        combo_opacity = cw2.slider("Opacity", 0.1, 1.0, 0.7, key="combo_wm_op")
+
+    do_grade = st.checkbox("3 · Color grade", value=False, key="combo_do_grade")
+    if do_grade:
+        combo_preset = st.selectbox("Preset", list(color_grade.PRESETS.keys()), key="combo_grade_preset")
+
+    do_highlight = st.checkbox("4 · Highlight reel (shortens the video)", value=False, key="combo_do_highlight")
+    if do_highlight:
+        combo_top_fraction = st.slider("Keep top % of footage", 0.1, 0.8, 0.3, key="combo_top_frac")
+        hint("This step re-cuts the video down to its best moments — run it last if you're combining it with others.")
+
+    section_label("Also generate (from the final video, doesn't affect the chain)")
+    cg1, cg2 = st.columns(2)
+    do_thumbs = cg1.checkbox("Thumbnails", value=False, key="combo_do_thumbs")
+    do_captions = cg2.checkbox("Captions (slower)", value=False, key="combo_do_captions")
+    cg3, cg4 = st.columns(2)
+    do_scene = cg3.checkbox("Scene changes", value=False, key="combo_do_scene")
+    do_info = cg4.checkbox("Video info report", value=False, key="combo_do_info")
+    hint("These four just analyze/export from whatever the video looks like after your selected steps above — none of them change the video itself.")
+
+    do_rename_final = st.checkbox("Rename the final output file", value=False, key="combo_do_rename")
+    if do_rename_final:
+        combo_project_name = st.text_input("Project name prefix", value="clip", key="combo_rename_name")
+        hint("Final file is renamed to {prefix}_{today's date}_001 — same convention as the Batch Rename tool.")
+
+    section_label("Export")
+    combo_resolution, combo_quality = export_settings_widget("combo")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if combo_file and st.button("Run Workflow", key="btn_combo"):
+        if not validate_uploads(combo_file):
+            st.stop()
+        if do_watermark and not combo_logo:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Missing logo</b> — upload a PNG logo for the watermark step, or turn that step off.</div>', unsafe_allow_html=True)
+            st.stop()
+        try:
+            steps = [n for n, on in [("Silence removal", do_silence), ("Watermark", do_watermark),
+                                      ("Color grade", do_grade), ("Highlight reel", do_highlight)] if on]
+            if not steps and not do_thumbs and not do_captions and not do_scene and not do_info and not do_rename_final:
+                st.markdown(f'<div class="empty-state">{icon("inbox", 26)}<br><b>Nothing selected</b><br>Turn on at least one step above.</div>', unsafe_allow_html=True)
+                st.stop()
+
+            current_path = save_upload(combo_file)
+            n_steps = (len(steps) + (1 if do_thumbs else 0) + (1 if do_captions else 0)
+                       + (1 if do_scene else 0) + (1 if do_info else 0) + (1 if do_rename_final else 0))
+            step_bar = st.progress(0.0)
+            done = 0
+
+            if do_silence:
+                step_bar.progress(done / max(n_steps, 1), text="Removing silences...")
+                silences = silence_detector.find_silences(current_path, combo_thresh, combo_minlen)
+                if silences:
+                    out = os.path.join(make_temp_dir(), "step_silence.mp4")
+                    silence_detector.build_trimmed_clip(current_path, silences, out,
+                                                         resolution=combo_resolution, quality=combo_quality)
+                    current_path = out
+                done += 1
+
+            if do_watermark:
+                step_bar.progress(done / max(n_steps, 1), text="Applying watermark...")
+                logo_path = save_upload(combo_logo)
+                out = os.path.join(make_temp_dir(), "step_watermark.mp4")
+                watermark.apply_watermark(current_path, logo_path, out, position=combo_position,
+                                           opacity=combo_opacity, resolution=combo_resolution, quality=combo_quality)
+                current_path = out
+                done += 1
+
+            if do_grade:
+                step_bar.progress(done / max(n_steps, 1), text="Applying color grade...")
+                out = os.path.join(make_temp_dir(), "step_grade.mp4")
+                color_grade.apply_grade(current_path, out, preset=combo_preset,
+                                         resolution=combo_resolution, quality=combo_quality)
+                current_path = out
+                done += 1
+
+            if do_highlight:
+                step_bar.progress(done / max(n_steps, 1), text="Building highlight reel...")
+                out = os.path.join(make_temp_dir(), "step_highlight.mp4")
+                highlight_reel.generate_highlight_reel(current_path, out, chunk_len=2.0,
+                                                        top_fraction=combo_top_fraction,
+                                                        resolution=combo_resolution, quality=combo_quality)
+                current_path = out
+                done += 1
+
+            thumb_results = []
+            if do_thumbs:
+                step_bar.progress(done / max(n_steps, 1), text="Generating thumbnails...")
+                thumb_dir = make_temp_dir()
+                thumb_results = thumbnail_generator.generate_thumbnails(current_path, thumb_dir, num_candidates=5)
+                done += 1
+
+            captions_srt_path = None
+            if do_captions:
+                step_bar.progress(done / max(n_steps, 1), text="Loading AI model (first run downloads ~140MB) and transcribing...")
+                from modules import captions as captions_module
+                captions_srt_path = os.path.join(make_temp_dir(), "captions.srt")
+                captions_module.generate_captions(current_path, captions_srt_path, model_size="base")
+                done += 1
+
+            scene_changes = []
+            if do_scene:
+                step_bar.progress(done / max(n_steps, 1), text="Detecting scene changes...")
+                scene_changes = scene_detector.detect_scene_changes(current_path)
+                done += 1
+
+            video_metadata = None
+            if do_info:
+                step_bar.progress(done / max(n_steps, 1), text="Reading video metadata...")
+                video_metadata = video_info.get_video_metadata(current_path)
+                done += 1
+
+            if do_rename_final:
+                step_bar.progress(done / max(n_steps, 1), text="Renaming final output...")
+                today_str = datetime.date.today().strftime("%Y-%m-%d")
+                ext = os.path.splitext(current_path)[1]
+                final_name = f"{combo_project_name}_{today_str}_001{ext}"
+                renamed_path = os.path.join(make_temp_dir(), final_name)
+                shutil.copy2(current_path, renamed_path)
+                current_path = renamed_path
+                done += 1
+            else:
+                final_name = "final_video" + os.path.splitext(current_path)[1]
+
+            step_bar.progress(1.0, text="Done")
+            extras = [n for n, on in [("thumbnails", do_thumbs), ("captions", do_captions),
+                                       ("scene detection", do_scene), ("video info", do_info)] if on]
+            st.success(f"Workflow complete — ran {len(steps)} step(s)" + (f" + {', '.join(extras)}" if extras else ""))
+
+            st.markdown('<div class="compare-label">Result</div>', unsafe_allow_html=True)
+            st.video(current_path)
+
+            if scene_changes:
+                st.markdown(f"**Scene changes** — {len(scene_changes)} detected")
+                st.write(scene_changes)
+
+            if video_metadata:
+                st.markdown("**Video info**")
+                mcol1, mcol2, mcol3 = st.columns(3)
+                mcol1.metric("Duration", f"{video_metadata['duration_sec']}s")
+                mcol2.metric("Resolution", video_metadata["resolution"])
+                mcol3.metric("Size", f"{video_metadata['size_mb']} MB")
+
+            if thumb_results:
+                st.markdown("**Thumbnails**")
+                thumb_cols = st.columns(min(len(thumb_results), 5) or 1)
+                for ti, r in enumerate(thumb_results):
+                    with thumb_cols[ti % len(thumb_cols)]:
+                        st.image(r["path"], caption=f"t={r['timestamp']}s")
+
+            if captions_srt_path:
+                st.markdown("**Captions**")
+                with open(captions_srt_path, "r", encoding="utf-8") as f:
+                    st.text_area("Preview", f.read(), height=120, key="combo_srt_preview")
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w") as zf:
+                zf.write(current_path, final_name)
+                for r in thumb_results:
+                    zf.write(r["path"], os.path.join("thumbnails", os.path.basename(r["path"])))
+                if captions_srt_path:
+                    zf.write(captions_srt_path, "captions.srt")
+                if scene_changes:
+                    csv_data = "timestamp_seconds\n" + "\n".join(str(c) for c in scene_changes)
+                    zf.writestr("scene_changes.csv", csv_data)
+                if video_metadata:
+                    info_lines = "\n".join(f"{k},{v}" for k, v in video_metadata.items())
+                    zf.writestr("video_info.csv", "field,value\n" + info_lines)
+            st.download_button(f"⬇ Download everything as .zip", zip_buf.getvalue(),
+                                file_name=f"{combo_file.name}_workflow.zip", key="dl_combo_zip")
+
+            log_history("Ran custom workflow", f"{combo_file.name} — {len(steps)} step(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
 # 1. SILENCE / JUMP-CUT DETECTOR
 # ---------------------------------------------------------------------------
 if active == "silence":
@@ -851,7 +1081,7 @@ if active == "silence":
     export_trimmed = st.checkbox("Also export a trimmed video (not just detect)", value=False)
     hint("Leave unchecked to just see where the gaps are — check this to actually render a shortened video with them removed.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Detect Silences", key="btn_silence"):
         if not validate_uploads(files):
             st.stop()
@@ -903,7 +1133,7 @@ if active == "thumbs":
     n = st.slider("Number of candidates per video", 1, 10, 5)
     hint("How many top-scoring frames to save per video — pick a few extra so you have options to choose from.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Generate Thumbnails", key="btn_thumb"):
         if not validate_uploads(files):
             st.stop()
@@ -956,7 +1186,7 @@ if active == "watermark":
     section_label("Export")
     resolution, quality = export_settings_widget("wm")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if video_files and logo_file and st.button("Apply Watermark", key="btn_wm"):
         if not (validate_uploads(video_files) and validate_uploads(logo_file, allowed_ext=(".png",))):
             st.stop()
@@ -999,7 +1229,7 @@ if active == "info":
     files = st.file_uploader("Upload one or more videos", type=["mp4", "mov"], accept_multiple_files=True, key="info_upload")
     hint("Great for getting a quick snapshot of a whole shoot before you start editing.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Generate Report", key="btn_info"):
         if not validate_uploads(files):
             st.stop()
@@ -1042,7 +1272,7 @@ if active == "rename":
     project_name = st.text_input("Project name prefix", value="clip")
     hint("Files are renamed as {prefix}_{date}_{number} and sorted into folders by the date they were shot.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Organize Footage", key="btn_rename"):
         if not validate_uploads(files):
             st.stop()
@@ -1084,7 +1314,7 @@ if active == "scene":
     sensitivity = st.slider("Sensitivity (lower = more cuts detected)", 0.1, 0.9, 0.5)
     hint("Lower this if the tool is missing real cuts; raise it if it's flagging too many false positives.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Detect Scene Changes", key="btn_scene"):
         if not validate_uploads(files):
             st.stop()
@@ -1137,7 +1367,7 @@ if active == "highlight":
     section_label("Export")
     resolution, quality = export_settings_widget("hl")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if file and st.button("Generate Highlight Reel", key="btn_highlight"):
         if not validate_uploads(file):
             st.stop()
@@ -1178,7 +1408,7 @@ if active == "grade":
     section_label("Export")
     resolution, quality = export_settings_widget("grade")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Apply Color Grade", key="btn_grade"):
         if not validate_uploads(files):
             st.stop()
@@ -1222,7 +1452,7 @@ if active == "captions":
                                help="Bigger = more accurate but slower")
     hint("\"Tiny\" is fastest for quick drafts; \"small\" gives noticeably better accuracy for accents or noisy audio.")
 
-    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
     if files and st.button("Generate Captions", key="btn_captions"):
         if not validate_uploads(files):
             st.stop()
