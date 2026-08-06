@@ -241,6 +241,29 @@ p, span, label, .stMarkdown{{ color:{T['text']}; }}
 .tool-card-title{{ font-size:14.5px; font-weight:700; color:{T['text']}; margin-bottom:4px; }}
 .tool-card-desc{{ font-size:12px; color:{T['muted']}; line-height:1.45; min-height:48px; }}
 
+/* ---------- Featured card — Custom Workflow, set apart from the regular grid ---------- */
+.featured-card{{
+  position:relative; background:{T['surface']}; border-radius:16px; padding:22px 26px 20px 26px;
+  margin-bottom:6px; overflow:hidden;
+  border:1px solid transparent;
+  background-image:linear-gradient({T['surface']}, {T['surface']}), {T['accent_grad']};
+  background-origin:border-box; background-clip:padding-box, border-box;
+  box-shadow:{T['glow']}, {T['shadow']};
+}}
+.featured-badge{{
+  display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:800;
+  color:{T['accent_bright']}; background:{T['surface2']}; border:1px solid {T['accent']}44;
+  padding:4px 10px; border-radius:999px; letter-spacing:0.06em; margin-bottom:12px;
+}}
+.featured-body{{ display:flex; align-items:flex-start; gap:16px; }}
+.featured-icon{{
+  flex-shrink:0; width:52px; height:52px; border-radius:14px; background:{T['accent_grad']};
+  display:flex; align-items:center; justify-content:center; color:{T['accent_text_on']};
+  box-shadow:0 6px 18px rgba(45,212,191,0.3);
+}}
+.featured-title{{ font-size:18px; font-weight:800; color:{T['text']}; margin-bottom:4px; }}
+.featured-desc{{ font-size:13px; color:{T['muted']}; line-height:1.55; }}
+
 /* ---------- Empty state / friendly error cards ---------- */
 .empty-state{{
   text-align:center; padding:32px 20px; background:{T['surface2']}; border:1px dashed {T['line']};
@@ -351,10 +374,21 @@ div[data-testid="stFileUploader"] section button:hover{{
 
 /* Force all widget labels to the theme text color, not Streamlit's default red */
 .stSlider label, .stSelectbox label, .stCheckbox label, .stRadio label,
-.stTextInput label, .stFileUploader label, .stNumberInput label,
+.stTextInput label, .stFileUploader label, .stNumberInput label, .stTextArea label,
 div[data-testid="stWidgetLabel"] label, div[data-testid="stWidgetLabel"] p{{
   color:{T['text']} !important; font-weight:600 !important; font-size:13.5px !important;
 }}
+
+/* Text input + text area — recolor from Streamlit's default (which stayed
+   dark regardless of theme) to match the app's own surface/text colors */
+.stTextInput input, .stTextArea textarea, .stNumberInput input{{
+  background:{T['surface2']} !important; color:{T['text']} !important;
+  border:1px solid {T['line']} !important; border-radius:9px !important;
+}}
+.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus{{
+  border-color:{T['accent']} !important; box-shadow:0 0 0 2px {T['accent']}33 !important;
+}}
+.stTextInput input::placeholder, .stTextArea textarea::placeholder{{ color:{T['muted2']} !important; }}
 
 /* Slider — recolor from Streamlit's default red to the teal/purple accent */
 .stSlider [data-baseweb="slider"]{{ margin-top:6px; }}
@@ -750,8 +784,28 @@ if active == "home":
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown(f"""
+    <div class="featured-card">
+      <div class="featured-badge">{icon('link', 12, T['accent_bright'])} FEATURED</div>
+      <div class="featured-body">
+        <div class="featured-icon">{icon('link', 26)}</div>
+        <div>
+          <div class="featured-title">Custom Workflow</div>
+          <div class="featured-desc">Chain any combination of tools — silence removal, watermark, color grade,
+          highlight reel, and more — and get everything in a single download. No more running each tool
+          separately and downloading one at a time.</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Build a Workflow  →", key="open_combo_featured", type="primary", use_container_width=True):
+        st.session_state.active_page = "combo"
+        st.rerun()
+
+    section_label("Individual tools")
     grid_cols = st.columns(5)
-    for i, (key, icon_name, title, desc) in enumerate(TOOL_CATALOG):
+    grid_items = [t for t in TOOL_CATALOG if t[0] != "combo"]
+    for i, (key, icon_name, title, desc) in enumerate(grid_items):
         with grid_cols[i % 5]:
             st.markdown(f"""
             <div class="tool-card">
