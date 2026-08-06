@@ -1,11 +1,17 @@
-streamlit>=1.35
-moviepy>=2.0
-opencv-python-headless>=4.8
-numpy>=1.24
-matplotlib>=3.8
-openai-whisper>=20231117
+# Pinned with ~= (compatible release) instead of == exact pins: this locks
+# out breaking major/minor version bumps (the real risk) while still
+# allowing safe patch updates (bug fixes, security patches) to install.
+# openai-whisper uses date-based versioning with no patch releases, so it's
+# pinned exactly.
+streamlit~=1.59
+moviepy~=2.1
+opencv-python-headless~=4.10
+numpy~=1.26
+matplotlib~=3.9
+openai-whisper==20231117
 
-# Note: ffmpeg must also be installed on your system separately.
+# Note: ffmpeg is installed via packages.txt on Streamlit Cloud.
+# For local development, install it separately:
 # - macOS:   brew install ffmpeg
 # - Ubuntu:  sudo apt install ffmpeg
 # - Windows: https://ffmpeg.org/download.html

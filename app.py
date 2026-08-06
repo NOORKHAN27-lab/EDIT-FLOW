@@ -11,6 +11,9 @@ Run locally with:
 """
 
 import os
+import io
+import zipfile
+import shutil
 import tempfile
 import datetime
 import streamlit as st
@@ -66,11 +69,28 @@ ICON_PATHS = {
 }
 
 
-def icon(name, size=17, color="currentColor", stroke_width=2):
+ICON_LABELS = {
+    "zap": "Lightning bolt", "volume-x": "Muted speaker", "image": "Image", "tag": "Tag",
+    "clipboard": "Clipboard", "folder": "Folder", "film": "Film strip", "clapperboard": "Clapperboard",
+    "palette": "Color palette", "captions": "Captions", "settings": "Settings gear",
+    "history": "History clock", "check-circle": "Checkmark", "alert-circle": "Warning",
+    "inbox": "Empty inbox", "home": "Home", "arrow-right": "Arrow right", "info": "Info",
+}
+
+
+def icon(name, size=17, color="currentColor", stroke_width=2, decorative=True):
+    """
+    Renders an inline SVG icon. By default the icon is treated as decorative
+    (aria-hidden) since every use in this app sits right next to visible
+    text that already conveys the meaning to screen readers — pass
+    decorative=False for the rare case an icon appears with no adjacent label.
+    """
     body = ICON_PATHS.get(name, ICON_PATHS["zap"])
+    a11y = 'aria-hidden="true"' if decorative else f'role="img" aria-label="{ICON_LABELS.get(name, name)}"'
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
             f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="{stroke_width}" '
-            f'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px">{body}</svg>')
+            f'stroke-linecap="round" stroke-linejoin="round" {a11y} '
+            f'style="vertical-align:-3px">{body}</svg>')
 
 
 def hint(text):
@@ -225,18 +245,49 @@ p, span, label, .stMarkdown{{ color:{T['text']}; }}
 }}
 .pill b{{ color:{T['accent_bright']}; }}
 
-/* ---------- Buttons ---------- */
-.stButton button{{
-  background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important; border:none !important;
+/* ---------- Buttons — explicit rules for BOTH kind="primary" and
+   kind="secondary" so nothing ever falls back to Streamlit's own default
+   colors (which caused unreadable black-on-black buttons in light theme) --- */
+.stButton button, .stDownloadButton button{{
   font-weight:700 !important; border-radius:9px !important; padding:0.55rem 1.3rem !important;
-  box-shadow:0 4px 14px rgba(45,212,191,0.25) !important; transition:transform 0.12s ease, box-shadow 0.12s ease !important;
+  transition:transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, border-color 0.12s ease !important;
 }}
-.stButton button:hover{{ transform:translateY(-1px); box-shadow:0 6px 18px rgba(45,212,191,0.35) !important; }}
+
+/* Primary — the main gradient call-to-action style */
+.stButton button[kind="primary"]{{
+  background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important; border:none !important;
+  box-shadow:0 4px 14px rgba(45,212,191,0.25) !important;
+}}
+.stButton button[kind="primary"]:hover{{
+  transform:translateY(-1px); box-shadow:0 6px 18px rgba(45,212,191,0.35) !important;
+  color:{T['accent_text_on']} !important;
+}}
+.stButton button[kind="primary"] p{{ color:{T['accent_text_on']} !important; }}
+
+/* Secondary — every other button (the vast majority: "Run Pipeline",
+   "Detect Silences", dashboard "Open" cards, sidebar quick-nav, etc.) */
+.stButton button[kind="secondary"]{{
+  background:{T['surface2']} !important; color:{T['text']} !important;
+  border:1px solid {T['line']} !important; box-shadow:none !important;
+}}
+.stButton button[kind="secondary"]:hover{{
+  background:{T['surface3']} !important; border-color:{T['accent']} !important; color:{T['text']} !important;
+}}
+.stButton button[kind="secondary"] p{{ color:{T['text']} !important; }}
+
+/* Download buttons */
 .stDownloadButton button{{
   background:{T['surface2']} !important; color:{T['accent_bright']} !important;
-  border:1px solid {T['line']} !important; font-weight:700 !important; border-radius:9px !important;
+  border:1px solid {T['line']} !important;
 }}
 .stDownloadButton button:hover{{ background:{T['surface3']} !important; border-color:{T['accent']} !important; }}
+.stDownloadButton button p{{ color:{T['accent_bright']} !important; }}
+
+/* Disabled buttons/inputs — keep legible instead of fading to black */
+button:disabled, button:disabled p{{
+  background:{T['surface2']} !important; color:{T['muted2']} !important; border-color:{T['line_soft']} !important;
+  opacity:0.7 !important;
+}}
 
 /* ---------- Inputs / uploaders ---------- */
 div[data-testid="stFileUploaderDropzone"]{{
@@ -273,7 +324,10 @@ div[data-baseweb="select"] > div{{
   background:{T['surface2']} !important; border-color:{T['line']} !important; border-radius:9px !important;
 }}
 div[data-baseweb="select"] > div:hover{{ border-color:{T['accent']} !important; }}
-div[data-baseweb="popover"] li{{ font-size:13px; }}
+div[data-baseweb="popover"]{{ background:{T['surface']} !important; }}
+div[data-baseweb="popover"] li{{ font-size:13px; color:{T['text']} !important; background:{T['surface']} !important; }}
+div[data-baseweb="popover"] li:hover{{ background:{T['surface2']} !important; }}
+div[data-baseweb="select"] span{{ color:{T['text']} !important; }}
 
 /* Helper caption text under controls */
 .control-hint{{
@@ -324,12 +378,14 @@ section[data-testid="stSidebar"] .stButton button{{
   justify-content:flex-start !important; text-align:left !important; padding:8px 10px !important;
   font-size:12.5px !important; box-shadow:none !important;
 }}
-section[data-testid="stSidebar"] .stButton button:not([kind="primary"]){{
+section[data-testid="stSidebar"] .stButton button[kind="secondary"]{{
   background:transparent !important; color:{T['muted']} !important; border:1px solid transparent !important;
 }}
-section[data-testid="stSidebar"] .stButton button:not([kind="primary"]):hover{{
-  background:{T['surface2']} !important; color:{T['text']} !important;
+section[data-testid="stSidebar"] .stButton button[kind="secondary"] p{{ color:{T['muted']} !important; }}
+section[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover{{
+  background:{T['surface2']} !important; color:{T['text']} !important; border-color:{T['line_soft']} !important;
 }}
+section[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover p{{ color:{T['text']} !important; }}
 .theme-toggle-wrap{{
   background:{T['surface2']}; border:1px solid {T['line_soft']}; border-radius:10px; padding:4px;
 }}
@@ -338,9 +394,10 @@ section[data-testid="stSidebar"] .stButton button:not([kind="primary"]):hover{{
   border-radius:7px !important; font-size:12.5px !important; justify-content:center !important;
   text-align:center !important; padding:7px 4px !important;
 }}
-.theme-toggle-wrap .stButton button:not([kind="primary"]){{
+.theme-toggle-wrap .stButton button[kind="secondary"]{{
   background:transparent !important; color:{T['muted']} !important;
 }}
+.theme-toggle-wrap .stButton button[kind="secondary"] p{{ color:{T['muted']} !important; }}
 .sidebar-section-label{{
   font-size:11px; font-weight:700; color:{T['muted2']}; text-transform:uppercase;
   letter-spacing:0.06em; margin:18px 0 10px 0;
@@ -365,6 +422,22 @@ section[data-testid="stSidebar"] .stButton button:not([kind="primary"]):hover{{
   border-top:1px solid {T['line_soft']};
 }}
 .editflow-footer b{{ color:{T['accent_bright']}; }}
+
+/* ---------- Mobile responsiveness ---------- */
+@media (max-width: 640px){{
+  .block-container{{ padding-left:0.8rem !important; padding-right:0.8rem !important; padding-top:1rem !important; }}
+  .editflow-header{{ flex-direction:column; align-items:flex-start; gap:12px; padding:14px 16px; }}
+  .editflow-header > div:last-child{{ width:100%; justify-content:space-between; }}
+  .editflow-title{{ font-size:17px; }}
+  .editflow-subtitle{{ font-size:11px; }}
+  .hero-strip{{ gap:6px; }}
+  .pill{{ font-size:10.5px; padding:6px 10px; }}
+  .tool-card{{ min-height:auto; padding:14px 12px 12px 12px; }}
+  .tool-card-desc{{ min-height:auto; }}
+  .card{{ padding:16px 16px; }}
+  .card h4{{ font-size:15px; }}
+  .stButton button{{ font-size:12.5px !important; padding:0.5rem 0.9rem !important; }}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -386,12 +459,76 @@ st.markdown(f"""
 
 
 def save_upload(uploaded_file):
-    """Writes an uploaded file to a temp path and returns that path."""
+    """Writes an uploaded file to a temp path and returns that path. Tracked for cleanup."""
     suffix = os.path.splitext(uploaded_file.name)[1]
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp.write(uploaded_file.read())
     tmp.close()
+    register_temp_path(tmp.name)
     return tmp.name
+
+
+def make_temp_dir():
+    """tempfile.mkdtemp() wrapper that registers the dir for cleanup on the next run."""
+    d = tempfile.mkdtemp()
+    register_temp_path(d)
+    return d
+
+
+def register_temp_path(path):
+    st.session_state.temp_paths.append(path)
+
+
+def cleanup_previous_temp_files():
+    """
+    Deletes every temp file/dir created during the PREVIOUS script run.
+    Safe to do at the top of each rerun: Streamlit re-executes the whole
+    script on every interaction, so results from a prior run are already
+    gone from the UI by the time this runs — nothing currently on screen
+    depends on these paths anymore.
+    """
+    for path in st.session_state.get("temp_paths", []):
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path, ignore_errors=True)
+            elif os.path.isfile(path):
+                os.remove(path)
+        except Exception:
+            pass
+    st.session_state.temp_paths = []
+
+
+if "temp_paths" not in st.session_state:
+    st.session_state.temp_paths = []
+cleanup_previous_temp_files()
+
+
+def validate_uploads(files, max_mb=200, allowed_ext=(".mp4", ".mov")):
+    """
+    Checks uploaded file(s) before processing starts: rejects empty files,
+    files over the size limit, and unexpected extensions. Returns True if
+    everything is fine, otherwise shows a friendly error and returns False.
+    """
+    if files is None:
+        return True
+    file_list = files if isinstance(files, list) else [files]
+    for f in file_list:
+        ext = os.path.splitext(f.name)[1].lower()
+        if ext not in allowed_ext:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Unsupported file type</b> — '
+                        f'"{f.name}" ({ext or "no extension"}). Please upload {", ".join(allowed_ext)} files only.</div>',
+                        unsafe_allow_html=True)
+            return False
+        if f.size == 0:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Empty file</b> — '
+                        f'"{f.name}" is 0 bytes. Try re-uploading it.</div>', unsafe_allow_html=True)
+            return False
+        if f.size > max_mb * 1024 * 1024:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>File too large</b> — '
+                        f'"{f.name}" is {f.size / (1024*1024):.0f}MB, over the {max_mb}MB limit.</div>',
+                        unsafe_allow_html=True)
+            return False
+    return True
 
 
 def export_settings_widget(key_prefix):
@@ -593,10 +730,13 @@ if active == "pipeline":
     resolution, quality = export_settings_widget("pipeline")
     hint("Controls the output video's resolution and compression — higher quality means a larger file.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if file and st.button("Run Full Pipeline", key="btn_pipeline"):
+        if not validate_uploads(file):
+            st.stop()
         try:
             path = save_upload(file)
-            out_dir = tempfile.mkdtemp()
+            out_dir = make_temp_dir()
             progress_bar = st.progress(0, text="Starting...")
 
             def update_progress(step, frac):
@@ -662,9 +802,14 @@ if active == "silence":
     export_trimmed = st.checkbox("Also export a trimmed video (not just detect)", value=False)
     hint("Leave unchecked to just see where the gaps are — check this to actually render a shortened video with them removed.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Detect Silences", key="btn_silence"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            for file in files:
+            batch_bar = st.progress(0.0)
+            for i, file in enumerate(files):
+                batch_bar.progress((i + 1) / len(files), text=f"File {i+1} of {len(files)}: {file.name}")
                 st.markdown(f"#### {file.name}")
                 path = save_upload(file)
                 with st.spinner("Analyzing audio..."):
@@ -684,7 +829,7 @@ if active == "silence":
                 log_history("Detected silences", f"{file.name} — {len(results)} found")
 
                 if export_trimmed and results:
-                    out_path = os.path.join(tempfile.mkdtemp(), f"trimmed_{file.name}")
+                    out_path = os.path.join(make_temp_dir(), f"trimmed_{file.name}")
                     with st.spinner("Rendering trimmed video..."):
                         silence_detector.build_trimmed_clip(path, results, out_path,
                                                              resolution=resolution, quality=quality)
@@ -709,18 +854,33 @@ if active == "thumbs":
     n = st.slider("Number of candidates per video", 1, 10, 5)
     hint("How many top-scoring frames to save per video — pick a few extra so you have options to choose from.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Generate Thumbnails", key="btn_thumb"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            for file in files:
+            batch_bar = st.progress(0.0)
+            for fi, file in enumerate(files):
+                batch_bar.progress((fi + 1) / len(files), text=f"File {fi+1} of {len(files)}: {file.name}")
                 st.markdown(f"#### {file.name}")
                 path = save_upload(file)
-                out_dir = tempfile.mkdtemp()
+                out_dir = make_temp_dir()
                 with st.spinner("Scanning frames..."):
                     results = thumbnail_generator.generate_thumbnails(path, out_dir, num_candidates=n)
                 cols = st.columns(min(len(results), 5) or 1)
                 for i, r in enumerate(results):
                     with cols[i % len(cols)]:
                         st.image(r["path"], caption=f"t={r['timestamp']}s · score={r['score']}")
+                        with open(r["path"], "rb") as imgf:
+                            st.download_button("Download", imgf, file_name=os.path.basename(r["path"]),
+                                                key=f"dl_thumb_{file.name}_{i}", use_container_width=True)
+                if results:
+                    zip_buf = io.BytesIO()
+                    with zipfile.ZipFile(zip_buf, "w") as zf:
+                        for r in results:
+                            zf.write(r["path"], os.path.basename(r["path"]))
+                    st.download_button(f"⬇ Download all {len(results)} as .zip", zip_buf.getvalue(),
+                                        file_name=f"{file.name}_thumbnails.zip", key=f"dlzip_thumb_{file.name}")
                 log_history("Generated thumbnails", f"{file.name} — {len(results)} candidates")
         except Exception as e:
             st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
@@ -747,13 +907,18 @@ if active == "watermark":
     section_label("Export")
     resolution, quality = export_settings_widget("wm")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if video_files and logo_file and st.button("Apply Watermark", key="btn_wm"):
+        if not (validate_uploads(video_files) and validate_uploads(logo_file, allowed_ext=(".png",))):
+            st.stop()
         try:
             lpath = save_upload(logo_file)
-            for video_file in video_files:
+            batch_bar = st.progress(0.0)
+            for vi, video_file in enumerate(video_files):
+                batch_bar.progress((vi + 1) / len(video_files), text=f"File {vi+1} of {len(video_files)}: {video_file.name}")
                 st.markdown(f"#### {video_file.name}")
                 vpath = save_upload(video_file)
-                out_path = os.path.join(tempfile.mkdtemp(), f"watermarked_{video_file.name}")
+                out_path = os.path.join(make_temp_dir(), f"watermarked_{video_file.name}")
                 with st.spinner("Rendering..."):
                     watermark.apply_watermark(vpath, lpath, out_path, position=position,
                                                opacity=opacity, resolution=resolution, quality=quality)
@@ -785,18 +950,31 @@ if active == "info":
     files = st.file_uploader("Upload one or more videos", type=["mp4", "mov"], accept_multiple_files=True, key="info_upload")
     hint("Great for getting a quick snapshot of a whole shoot before you start editing.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Generate Report", key="btn_info"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            folder = tempfile.mkdtemp()
+            folder = make_temp_dir()
             for f in files:
                 with open(os.path.join(folder, f.name), "wb") as out:
                     out.write(f.read())
-            rows, totals = video_info.generate_report(folder)
+            with st.spinner(f"Reading metadata from {len(files)} file(s)..."):
+                rows, totals = video_info.generate_report(folder)
             c1, c2, c3 = st.columns(3)
             c1.metric("Clips", totals["clip_count"])
             c2.metric("Total Duration", f"{totals['total_duration_sec']}s")
             c3.metric("Total Size", f"{totals['total_size_mb']} MB")
             st.dataframe(rows, use_container_width=True)
+
+            if rows:
+                csv_lines = [",".join(rows[0].keys())]
+                for r in rows:
+                    csv_lines.append(",".join(str(v) for v in r.values()))
+                csv_data = "\n".join(csv_lines)
+                st.download_button("⬇ Download report as .csv", csv_data, file_name="video_info_report.csv",
+                                    mime="text/csv", key="dl_info_csv")
+
             log_history("Generated video info report", f"{totals['clip_count']} clip(s)")
         except Exception as e:
             st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
@@ -815,17 +993,31 @@ if active == "rename":
     project_name = st.text_input("Project name prefix", value="clip")
     hint("Files are renamed as {prefix}_{date}_{number} and sorted into folders by the date they were shot.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Organize Footage", key="btn_rename"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            folder = tempfile.mkdtemp()
+            folder = make_temp_dir()
             for f in files:
                 with open(os.path.join(folder, f.name), "wb") as out:
                     out.write(f.read())
-            out_dir = tempfile.mkdtemp()
-            results = batch_rename.organize_footage(folder, out_dir, project_name=project_name)
+            out_dir = make_temp_dir()
+            with st.spinner(f"Organizing {len(files)} file(s)..."):
+                results = batch_rename.organize_footage(folder, out_dir, project_name=project_name)
             st.success(f"Organized {len(results)} file(s)")
             for old, new in results:
                 st.text(f"{os.path.basename(old)}  →  {new.replace(out_dir, '')}")
+
+            if results:
+                zip_buf = io.BytesIO()
+                with zipfile.ZipFile(zip_buf, "w") as zf:
+                    for _, new_path in results:
+                        arcname = new_path.replace(out_dir, "").lstrip(os.sep)
+                        zf.write(new_path, arcname)
+                st.download_button(f"⬇ Download all {len(results)} organized file(s) as .zip", zip_buf.getvalue(),
+                                    file_name=f"{project_name}_organized.zip", key="dl_rename_zip")
+
             log_history("Organized footage", f"{len(results)} file(s)")
         except Exception as e:
             st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable, or a required tool (ffmpeg) is missing.</div>', unsafe_allow_html=True)
@@ -843,9 +1035,14 @@ if active == "scene":
     sensitivity = st.slider("Sensitivity (lower = more cuts detected)", 0.1, 0.9, 0.5)
     hint("Lower this if the tool is missing real cuts; raise it if it's flagging too many false positives.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Detect Scene Changes", key="btn_scene"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            for file in files:
+            batch_bar = st.progress(0.0)
+            for fi, file in enumerate(files):
+                batch_bar.progress((fi + 1) / len(files), text=f"File {fi+1} of {len(files)}: {file.name}")
                 st.markdown(f"#### {file.name}")
                 path = save_upload(file)
                 with st.spinner("Scanning..."):
@@ -859,6 +1056,10 @@ if active == "scene":
                 if changes:
                     st.success(f"Detected {len(changes)} scene change(s)")
                     st.write(changes)
+                    csv_data = "timestamp_seconds\n" + "\n".join(str(c) for c in changes)
+                    st.download_button(f"⬇ Download timestamps — {file.name}.csv", csv_data,
+                                        file_name=f"{file.name}_scene_changes.csv", mime="text/csv",
+                                        key=f"dl_scene_{file.name}")
                 else:
                     st.markdown(f'<div class="empty-state">{icon("inbox", 26)}<br><b>No scene changes detected</b><br>Try lowering the sensitivity slider for more cuts.</div>', unsafe_allow_html=True)
                 log_history("Detected scene changes", f"{file.name} — {len(changes)} found")
@@ -887,10 +1088,13 @@ if active == "highlight":
     section_label("Export")
     resolution, quality = export_settings_widget("hl")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if file and st.button("Generate Highlight Reel", key="btn_highlight"):
+        if not validate_uploads(file):
+            st.stop()
         try:
             path = save_upload(file)
-            out_path = os.path.join(tempfile.mkdtemp(), "highlight_reel.mp4")
+            out_path = os.path.join(make_temp_dir(), "highlight_reel.mp4")
             with st.spinner("Scoring & rendering..."):
                 kept = highlight_reel.generate_highlight_reel(path, out_path, top_fraction=top_fraction,
                                                                 resolution=resolution, quality=quality)
@@ -925,12 +1129,17 @@ if active == "grade":
     section_label("Export")
     resolution, quality = export_settings_widget("grade")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Apply Color Grade", key="btn_grade"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            for file in files:
+            batch_bar = st.progress(0.0)
+            for fi, file in enumerate(files):
+                batch_bar.progress((fi + 1) / len(files), text=f"File {fi+1} of {len(files)}: {file.name}")
                 st.markdown(f"#### {file.name}")
                 path = save_upload(file)
-                out_path = os.path.join(tempfile.mkdtemp(), f"graded_{file.name}")
+                out_path = os.path.join(make_temp_dir(), f"graded_{file.name}")
                 with st.spinner("Rendering..."):
                     color_grade.apply_grade(path, out_path, preset=preset, resolution=resolution, quality=quality)
 
@@ -964,13 +1173,18 @@ if active == "captions":
                                help="Bigger = more accurate but slower")
     hint("\"Tiny\" is fastest for quick drafts; \"small\" gives noticeably better accuracy for accents or noisy audio.")
 
+    st.caption("⏹ You can stop a run in progress anytime using Streamlit's own Stop control, which appears near the top-right of the page while a run is active.")
     if files and st.button("Generate Captions", key="btn_captions"):
+        if not validate_uploads(files):
+            st.stop()
         try:
-            for file in files:
+            batch_bar = st.progress(0.0)
+            for fi, file in enumerate(files):
+                batch_bar.progress((fi + 1) / len(files), text=f"File {fi+1} of {len(files)}: {file.name}")
                 st.markdown(f"#### {file.name}")
                 path = save_upload(file)
-                out_path = os.path.join(tempfile.mkdtemp(), "captions.srt")
-                with st.spinner("Transcribing (this can take a minute)..."):
+                out_path = os.path.join(make_temp_dir(), "captions.srt")
+                with st.spinner("Loading AI model — first run downloads it (~140MB), later runs are instant. Then transcribing (can take a minute for longer clips)..."):
                     from modules import captions
                     segments = captions.generate_captions(path, out_path, model_size=model_size)
                 st.success(f"Generated {len(segments)} caption segment(s)")
