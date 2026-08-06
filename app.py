@@ -133,7 +133,17 @@ st.markdown(f"""
 
 html, body, [class*="css"] {{ font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }}
 
-.stApp{{ background:{T['bg_grad']}; color:{T['text']}; }}
+/* Set Streamlit's own internal CSS variables to match our theme — several
+   native components (like the file uploader's Browse button) read these
+   directly instead of the classes we style below, so without this they
+   stay stuck on Streamlit's default colors regardless of our toggle. */
+.stApp{{
+  --primary-color:{T['accent']};
+  --background-color:{T['bg']};
+  --secondary-background-color:{T['surface2']};
+  --text-color:{T['text']};
+  background:{T['bg_grad']}; color:{T['text']};
+}}
 #MainMenu, footer, header[data-testid="stHeader"]{{ background:transparent; }}
 .block-container{{ padding-top:1.6rem; max-width:1220px; }}
 
@@ -290,16 +300,35 @@ button:disabled, button:disabled p{{
 }}
 
 /* ---------- Inputs / uploaders ---------- */
-div[data-testid="stFileUploaderDropzone"]{{
-  background:{T['surface2']}; border:1.5px dashed {T['line']}; border-radius:12px;
+div[data-testid="stFileUploader"] section{{
+  background:{T['surface2']} !important; border:1.5px dashed {T['line']} !important; border-radius:12px !important;
 }}
-div[data-testid="stFileUploaderDropzone"] button{{
+div[data-testid="stFileUploaderDropzone"]{{
+  background:{T['surface2']} !important; border:1.5px dashed {T['line']} !important; border-radius:12px !important;
+}}
+div[data-testid="stFileUploaderDropzone"] span,
+div[data-testid="stFileUploaderDropzone"] small,
+div[data-testid="stFileUploaderDropzone"] div{{ color:{T['muted']} !important; }}
+div[data-testid="stFileUploaderDropzone"] button,
+div[data-testid="stFileUploader"] section button{{
   background:{T['accent_grad']} !important; color:{T['accent_text_on']} !important; border:none !important;
 }}
+div[data-testid="stFileUploaderDropzone"] button *,
+div[data-testid="stFileUploader"] section button *{{ color:{T['accent_text_on']} !important; }}
+div[data-testid="stFileUploaderDropzone"] button:hover,
+div[data-testid="stFileUploader"] section button:hover{{
+  background:{T['accent_grad']} !important; opacity:0.9;
+}}
+/* Uploaded file chip (name + size + remove button) shown after upload */
+[data-testid="stFileUploaderFile"]{{ background:{T['surface2']} !important; color:{T['text']} !important; }}
+[data-testid="stFileUploaderFile"] *{{ color:{T['text']} !important; }}
+[data-testid="stFileUploaderFileName"]{{ color:{T['text']} !important; }}
+[data-testid="baseButton-minimal"]{{ color:{T['muted']} !important; }}
 
 /* Force all widget labels to the theme text color, not Streamlit's default red */
 .stSlider label, .stSelectbox label, .stCheckbox label, .stRadio label,
-.stTextInput label, .stFileUploader label, .stNumberInput label{{
+.stTextInput label, .stFileUploader label, .stNumberInput label,
+div[data-testid="stWidgetLabel"] label, div[data-testid="stWidgetLabel"] p{{
   color:{T['text']} !important; font-weight:600 !important; font-size:13.5px !important;
 }}
 
