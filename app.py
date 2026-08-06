@@ -330,6 +330,17 @@ section[data-testid="stSidebar"] .stButton button:not([kind="primary"]){{
 section[data-testid="stSidebar"] .stButton button:not([kind="primary"]):hover{{
   background:{T['surface2']} !important; color:{T['text']} !important;
 }}
+.theme-toggle-wrap{{
+  background:{T['surface2']}; border:1px solid {T['line_soft']}; border-radius:10px; padding:4px;
+}}
+.theme-toggle-wrap div[data-testid="stHorizontalBlock"]{{ gap:4px; }}
+.theme-toggle-wrap .stButton button{{
+  border-radius:7px !important; font-size:12.5px !important; justify-content:center !important;
+  text-align:center !important; padding:7px 4px !important;
+}}
+.theme-toggle-wrap .stButton button:not([kind="primary"]){{
+  background:transparent !important; color:{T['muted']} !important;
+}}
 .sidebar-section-label{{
   font-size:11px; font-weight:700; color:{T['muted2']}; text-transform:uppercase;
   letter-spacing:0.06em; margin:18px 0 10px 0;
@@ -433,19 +444,34 @@ with st.sidebar:
         st.markdown(f'<div class="sidebar-stat"><div class="sidebar-stat-num">{len(st.session_state.history)}</div><div class="sidebar-stat-label">This session</div></div>', unsafe_allow_html=True)
 
     st.markdown(f'<div class="sidebar-section-label">{icon("zap", 13)} Quick Access</div>', unsafe_allow_html=True)
+    NAV_EMOJI = {
+        "home": "🏠", "zap": "⚡", "volume-x": "🔇", "image": "🖼", "tag": "🏷",
+        "clipboard": "📋", "folder": "📁", "film": "🎞", "clapperboard": "🎬",
+        "palette": "🎨", "captions": "📝",
+    }
     for key, icon_name, label in NAV_ITEMS:
         is_active = st.session_state.active_page == key
-        if st.button(f"{icon(icon_name, 14)}  {label}", key=f"sbnav_{key}", use_container_width=True,
+        if st.button(f"{NAV_EMOJI.get(icon_name, '•')}  {label}", key=f"sbnav_{key}", use_container_width=True,
                      type="primary" if is_active else "secondary"):
             st.session_state.active_page = key
             st.rerun()
 
     st.markdown(f'<div class="sidebar-section-label">{icon("settings", 13)} Appearance</div>', unsafe_allow_html=True)
-    theme_choice = st.radio("Theme", ["dark", "light"], index=0 if st.session_state.theme == "dark" else 1,
-                             horizontal=True, label_visibility="collapsed")
-    if theme_choice != st.session_state.theme:
-        st.session_state.theme = theme_choice
-        st.rerun()
+    st.markdown('<div class="theme-toggle-wrap">', unsafe_allow_html=True)
+    tcol1, tcol2 = st.columns(2)
+    with tcol1:
+        if st.button("🌙  Dark", key="theme_dark", use_container_width=True,
+                     type="primary" if st.session_state.theme == "dark" else "secondary"):
+            if st.session_state.theme != "dark":
+                st.session_state.theme = "dark"
+                st.rerun()
+    with tcol2:
+        if st.button("☀️  Light", key="theme_light", use_container_width=True,
+                     type="primary" if st.session_state.theme == "light" else "secondary"):
+            if st.session_state.theme != "light":
+                st.session_state.theme = "light"
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown(f'<div class="sidebar-section-label">{icon("history", 13)} Session Workspace</div>', unsafe_allow_html=True)
     if not st.session_state.history:
@@ -483,7 +509,7 @@ if active != "home":
     current_label = next((label for k, _, label in NAV_ITEMS if k == active), "")
     bcol1, bcol2 = st.columns([1, 8])
     with bcol1:
-        if st.button(f"{icon('home', 14)}  Dashboard", key="btn_back_home", use_container_width=True):
+        if st.button("🏠  Dashboard", key="btn_back_home", use_container_width=True):
             st.session_state.active_page = "home"
             st.rerun()
     with bcol2:
