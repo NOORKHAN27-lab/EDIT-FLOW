@@ -580,6 +580,38 @@ div[data-baseweb="snackbar"] *{{ color:{T['text']} !important; }}
 </style>
 """, unsafe_allow_html=True)
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "video"
+
+VIDEO_NAV_ITEMS = [
+    ("pipeline", "zap", "Full Pipeline"),
+    ("combo", "link", "Custom Workflow"),
+    ("silence", "volume-x", "Silence Cuts"),
+    ("thumbs", "image", "Thumbnails"),
+    ("watermark", "tag", "Watermark"),
+    ("info", "clipboard", "Video Info"),
+    ("rename", "folder", "Batch Rename"),
+    ("scene", "film", "Scene Detect"),
+    ("highlight", "clapperboard", "Highlight Reel"),
+    ("grade", "palette", "Color Grade"),
+    ("captions", "captions", "Captions"),
+]
+
+IMAGE_NAV_ITEMS = [
+    ("img_combo", "link", "Custom Workflow"),
+    ("img_watermark", "tag", "Watermark"),
+    ("img_grade", "palette", "Filters"),
+    ("img_resize", "folder", "Resize & Convert"),
+    ("img_bgremove", "image", "Background Removal"),
+    ("img_merge", "clapperboard", "Merge Photos"),
+]
+
+NAV_ITEMS = [("home", "home", "Dashboard")] + \
+    (VIDEO_NAV_ITEMS if st.session_state.mode == "video" else IMAGE_NAV_ITEMS)
+
+if "active_page" not in st.session_state:
+    st.session_state.active_page = "home"
+
 st.markdown(f"""
 <div class="editflow-header">
   <div class="editflow-logo">
@@ -676,39 +708,6 @@ def export_settings_widget(key_prefix):
     resolution = c1.selectbox("Export resolution", list(RESOLUTIONS.keys()), key=f"{key_prefix}_res")
     quality = c2.selectbox("Export quality", list(QUALITY_PRESETS.keys()), index=1, key=f"{key_prefix}_qual")
     return resolution, quality
-
-
-if "mode" not in st.session_state:
-    st.session_state.mode = "video"
-
-VIDEO_NAV_ITEMS = [
-    ("pipeline", "zap", "Full Pipeline"),
-    ("combo", "link", "Custom Workflow"),
-    ("silence", "volume-x", "Silence Cuts"),
-    ("thumbs", "image", "Thumbnails"),
-    ("watermark", "tag", "Watermark"),
-    ("info", "clipboard", "Video Info"),
-    ("rename", "folder", "Batch Rename"),
-    ("scene", "film", "Scene Detect"),
-    ("highlight", "clapperboard", "Highlight Reel"),
-    ("grade", "palette", "Color Grade"),
-    ("captions", "captions", "Captions"),
-]
-
-IMAGE_NAV_ITEMS = [
-    ("img_combo", "link", "Custom Workflow"),
-    ("img_watermark", "tag", "Watermark"),
-    ("img_grade", "palette", "Filters"),
-    ("img_resize", "folder", "Resize & Convert"),
-    ("img_bgremove", "image", "Background Removal"),
-    ("img_merge", "clapperboard", "Merge Photos"),
-]
-
-NAV_ITEMS = [("home", "home", "Dashboard")] + \
-    (VIDEO_NAV_ITEMS if st.session_state.mode == "video" else IMAGE_NAV_ITEMS)
-
-if "active_page" not in st.session_state:
-    st.session_state.active_page = "home"
 
 
 # ---------------------------------------------------------------------------
