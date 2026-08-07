@@ -20,7 +20,7 @@ import streamlit as st
 
 from modules import silence_detector, thumbnail_generator, watermark, \
     video_info, batch_rename, scene_detector, highlight_reel, color_grade, \
-    visualizations, pipeline
+    visualizations, pipeline, image_tools
 from modules.export_settings import RESOLUTIONS, QUALITY_PRESETS
 
 st.set_page_config(page_title="EditFlow — Automated Video Editing", page_icon="🎬", layout="wide")
@@ -241,6 +241,19 @@ p, span, label, .stMarkdown{{ color:{T['text']}; }}
 .tool-card-title{{ font-size:14.5px; font-weight:700; color:{T['text']}; margin-bottom:4px; }}
 .tool-card-desc{{ font-size:12px; color:{T['muted']}; line-height:1.45; min-height:48px; }}
 
+/* ---------- Mode switch cards (Video Editing / Image Editing) ---------- */
+.mode-card{{
+  background:{T['surface']}; border:1.5px solid {T['line_soft']}; border-radius:14px;
+  padding:20px 18px 16px 18px; margin-bottom:8px; transition:border-color 0.15s ease, box-shadow 0.15s ease;
+}}
+.mode-card-active{{ border-color:{T['accent']}; box-shadow:{T['glow']}; }}
+.mode-card-icon{{
+  width:44px; height:44px; border-radius:12px; background:{T['accent_grad']};
+  display:flex; align-items:center; justify-content:center; color:{T['accent_text_on']}; margin-bottom:10px;
+}}
+.mode-card-title{{ font-size:16px; font-weight:800; color:{T['text']}; margin-bottom:4px; }}
+.mode-card-desc{{ font-size:12.5px; color:{T['muted']}; line-height:1.5; min-height:36px; }}
+
 /* ---------- Featured card — Custom Workflow, set apart from the regular grid ---------- */
 .featured-card{{
   position:relative; background:{T['surface']}; border-radius:16px; padding:22px 26px 20px 26px;
@@ -436,7 +449,27 @@ div[data-testid="stMetricLabel"]{{ color:{T['muted']} !important; font-size:12.5
 div[data-testid="stMetricValue"]{{ color:{T['accent_bright']} !important; }}
 
 .stDataFrame{{ border-radius:12px; overflow:hidden; border:1px solid {T['line_soft']}; }}
+.stDataFrame, .stDataFrame *{{ color:{T['text']} !important; }}
+[data-testid="stDataFrameResizable"]{{ background:{T['surface']} !important; }}
+
 .stProgress > div > div{{ background:{T['accent_grad']} !important; }}
+.stProgress p{{ color:{T['text']} !important; }}
+
+/* Success / error / warning / info alert boxes (st.success, st.error, etc.) —
+   these carry their own semantic tint but the text/icon color still needs
+   to track the theme so it stays readable on both light and dark. */
+[data-testid="stAlert"]{{ border-radius:10px !important; }}
+[data-testid="stAlert"] p, [data-testid="stAlert"] span,
+[data-testid="stAlertContentSuccess"] p, [data-testid="stAlertContentError"] p,
+[data-testid="stAlertContentWarning"] p, [data-testid="stAlertContentInfo"] p{{
+  color:{T['text']} !important;
+}}
+
+/* Text preview boxes (st.text / st.code / st.write of plain strings) */
+[data-testid="stText"], [data-testid="stMarkdownContainer"] p, [data-testid="stCaptionContainer"]{{
+  color:{T['text']};
+}}
+.stCaption, [data-testid="stCaptionContainer"] p{{ color:{T['muted']} !important; }}
 
 div[data-testid="stImage"]{{
   border-radius:10px; overflow:hidden; transition:transform 0.15s ease, box-shadow 0.15s ease;
@@ -553,11 +586,11 @@ st.markdown(f"""
     <div class="mark">{icon('clapperboard', 20, '#062A26')}</div>
     <div>
       <div class="editflow-title">Edit<span>Flow</span></div>
-      <div class="editflow-subtitle">Batch video-editing automation — silence cuts, captions, highlights &amp; more</div>
+      <div class="editflow-subtitle">Batch video &amp; image editing automation — silence cuts, watermarks, background removal &amp; more</div>
     </div>
   </div>
   <div style="display:flex; align-items:center; gap:16px;">
-    <span class="editflow-badge">{icon('check-circle', 13)} 10 tools online</span>
+    <span class="editflow-badge">{icon('check-circle', 13)} {len(NAV_ITEMS)-1} tools online</span>
     <div class="editflow-credit">Developed by<br><b>Noor Ahmed Khan</b></div>
   </div>
 </div>
@@ -645,8 +678,10 @@ def export_settings_widget(key_prefix):
     return resolution, quality
 
 
-NAV_ITEMS = [
-    ("home", "home", "Dashboard"),
+if "mode" not in st.session_state:
+    st.session_state.mode = "video"
+
+VIDEO_NAV_ITEMS = [
     ("pipeline", "zap", "Full Pipeline"),
     ("combo", "link", "Custom Workflow"),
     ("silence", "volume-x", "Silence Cuts"),
@@ -659,6 +694,18 @@ NAV_ITEMS = [
     ("grade", "palette", "Color Grade"),
     ("captions", "captions", "Captions"),
 ]
+
+IMAGE_NAV_ITEMS = [
+    ("img_combo", "link", "Custom Workflow"),
+    ("img_watermark", "tag", "Watermark"),
+    ("img_grade", "palette", "Filters"),
+    ("img_resize", "folder", "Resize & Convert"),
+    ("img_bgremove", "image", "Background Removal"),
+    ("img_merge", "clapperboard", "Merge Photos"),
+]
+
+NAV_ITEMS = [("home", "home", "Dashboard")] + \
+    (VIDEO_NAV_ITEMS if st.session_state.mode == "video" else IMAGE_NAV_ITEMS)
 
 if "active_page" not in st.session_state:
     st.session_state.active_page = "home"
@@ -676,16 +723,35 @@ with st.sidebar:
       <div class="mark">{icon('clapperboard', 15, '#062A26')}</div>
       <div>
         <div class="sidebar-brand-text">EditFlow</div>
-        <div style="font-size:11px; color:{T['muted2']};">Video editing automation suite</div>
+        <div style="font-size:11px; color:{T['muted2']};">Video &amp; image editing suite</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
     scol1, scol2 = st.columns(2)
     with scol1:
-        st.markdown(f'<div class="sidebar-stat"><div class="sidebar-stat-num">10</div><div class="sidebar-stat-label">Tools</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sidebar-stat"><div class="sidebar-stat-num">{len(NAV_ITEMS)-1}</div><div class="sidebar-stat-label">Tools</div></div>', unsafe_allow_html=True)
     with scol2:
         st.markdown(f'<div class="sidebar-stat"><div class="sidebar-stat-num">{len(st.session_state.history)}</div><div class="sidebar-stat-label">This session</div></div>', unsafe_allow_html=True)
+
+    st.markdown(f'<div class="sidebar-section-label">{icon("settings", 13)} Mode</div>', unsafe_allow_html=True)
+    st.markdown('<div class="theme-toggle-wrap">', unsafe_allow_html=True)
+    modecol1, modecol2 = st.columns(2)
+    with modecol1:
+        if st.button("🎬 Video", key="sb_mode_video", use_container_width=True,
+                     type="primary" if st.session_state.mode == "video" else "secondary"):
+            if st.session_state.mode != "video":
+                st.session_state.mode = "video"
+                st.session_state.active_page = "home"
+                st.rerun()
+    with modecol2:
+        if st.button("🖼 Image", key="sb_mode_image", use_container_width=True,
+                     type="primary" if st.session_state.mode == "image" else "secondary"):
+            if st.session_state.mode != "image":
+                st.session_state.mode = "image"
+                st.session_state.active_page = "home"
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown(f'<div class="sidebar-section-label">{icon("zap", 13)} Quick Access</div>', unsafe_allow_html=True)
     NAV_EMOJI = {
@@ -760,11 +826,10 @@ if active != "home":
         st.markdown(f'<div style="padding-top:8px; color:{T["muted"]}; font-size:13px;">{icon("arrow-right", 13)} You\'re viewing <b style="color:{T["text"]}">{current_label}</b></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# TOOL CATALOG — used by the dashboard/landing grid
+# TOOL CATALOG — used by the dashboard/landing grid, split by mode
 # ---------------------------------------------------------------------------
-TOOL_CATALOG = [
+VIDEO_TOOL_CATALOG = [
     ("pipeline", "zap", "Full Pipeline", "Silence removal → scene detection → thumbnails → captions in one pass."),
-    ("combo", "link", "Custom Workflow", "Pick any combo of tools — silence, watermark, grade, highlight — chained into one download."),
     ("silence", "volume-x", "Silence Cuts", "Finds dead-air gaps in your audio track automatically."),
     ("thumbs", "image", "Thumbnails", "Scores frames by sharpness + contrast to find the best freeze-frame."),
     ("watermark", "tag", "Watermark", "Stamps a logo onto your videos, batch-applied across clips."),
@@ -776,14 +841,54 @@ TOOL_CATALOG = [
     ("captions", "captions", "Captions", "Transcribes speech into a ready-to-import .srt file, fully offline."),
 ]
 
+IMAGE_TOOL_CATALOG = [
+    ("img_watermark", "tag", "Watermark", "Stamps a logo onto your photos, batch-applied across a folder."),
+    ("img_grade", "palette", "Filters", "Applies a consistent color look across photos using built-in presets."),
+    ("img_resize", "folder", "Resize & Convert", "Batch resize and convert between JPEG, PNG, and WEBP."),
+    ("img_bgremove", "image", "Background Removal", "Cuts the subject out onto a transparent background."),
+    ("img_merge", "clapperboard", "Merge Photos", "Combines two people (cut from their own photos) onto a background you choose."),
+]
+
+TOOL_CATALOG = VIDEO_TOOL_CATALOG if st.session_state.mode == "video" else IMAGE_TOOL_CATALOG
+
 if active == "home":
     st.markdown(f"""
     <div class="card" style="margin-bottom:24px;">
       <h4 style="font-size:20px;">{icon('home', 22)}&nbsp; Welcome back, Noor 👋</h4>
-      <p>Pick a tool below to get started, or run the Full Pipeline to chain everything together in one pass.</p>
+      <p>Choose a mode below, then pick a tool to get started.</p>
     </div>
     """, unsafe_allow_html=True)
 
+    section_label("Mode")
+    mcol1, mcol2 = st.columns(2)
+    with mcol1:
+        st.markdown(f"""
+        <div class="mode-card {'mode-card-active' if st.session_state.mode == 'video' else ''}">
+          <div class="mode-card-icon">{icon('clapperboard', 24)}</div>
+          <div class="mode-card-title">Video Editing</div>
+          <div class="mode-card-desc">Silence cuts, watermarks, highlight reels, captions, and more.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Use Video Editing", key="mode_video", use_container_width=True,
+                     type="primary" if st.session_state.mode == "video" else "secondary"):
+            st.session_state.mode = "video"
+            st.session_state.active_page = "home"
+            st.rerun()
+    with mcol2:
+        st.markdown(f"""
+        <div class="mode-card {'mode-card-active' if st.session_state.mode == 'image' else ''}">
+          <div class="mode-card-icon">{icon('image', 24)}</div>
+          <div class="mode-card-title">Image Editing</div>
+          <div class="mode-card-desc">Watermarks, filters, background removal, and merging photos.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Use Image Editing", key="mode_image", use_container_width=True,
+                     type="primary" if st.session_state.mode == "image" else "secondary"):
+            st.session_state.mode = "image"
+            st.session_state.active_page = "home"
+            st.rerun()
+
+    combo_key = "combo" if st.session_state.mode == "video" else "img_combo"
     st.markdown(f"""
     <div class="featured-card">
       <div class="featured-badge">{icon('link', 12, T['accent_bright'])} FEATURED</div>
@@ -791,21 +896,19 @@ if active == "home":
         <div class="featured-icon">{icon('link', 26)}</div>
         <div>
           <div class="featured-title">Custom Workflow</div>
-          <div class="featured-desc">Chain any combination of tools — silence removal, watermark, color grade,
-          highlight reel, and more — and get everything in a single download. No more running each tool
-          separately and downloading one at a time.</div>
+          <div class="featured-desc">Chain any combination of {"video" if st.session_state.mode == "video" else "image"} tools
+          together and get everything in a single download — no more running each tool separately.</div>
         </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
     if st.button("Build a Workflow  →", key="open_combo_featured", type="primary", use_container_width=True):
-        st.session_state.active_page = "combo"
+        st.session_state.active_page = combo_key
         st.rerun()
 
     section_label("Individual tools")
     grid_cols = st.columns(5)
-    grid_items = [t for t in TOOL_CATALOG if t[0] != "combo"]
-    for i, (key, icon_name, title, desc) in enumerate(grid_items):
+    for i, (key, icon_name, title, desc) in enumerate(TOOL_CATALOG):
         with grid_cols[i % 5]:
             st.markdown(f"""
             <div class="tool-card">
@@ -1532,10 +1635,366 @@ if active == "captions":
                 st.exception(e)
 
 # ---------------------------------------------------------------------------
+# IMAGE — WATERMARK
+# ---------------------------------------------------------------------------
+if active == "img_watermark":
+    st.markdown(f'<div class="card"><h4>{icon("tag", 18)}&nbsp; Batch Watermark (Images)</h4>'
+                '<p>Stamps a logo onto every photo you upload, in one batch — same idea as the video '
+                'watermark tool, but for images.</p></div>', unsafe_allow_html=True)
+
+    img_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], key="imgwm_upload", accept_multiple_files=True)
+    hint("Every image here gets the same logo and position applied in one batch run.")
+    logo_file = st.file_uploader("Upload a logo (PNG)", type=["png"], key="imgwm_logo")
+    hint("Use a PNG with a transparent background for the cleanest result.")
+
+    section_label("Placement")
+    ipos = st.selectbox("Position", list(image_tools.POSITIONS.keys()), key="imgwm_pos")
+    iop = st.slider("Opacity", 0.1, 1.0, 0.7, key="imgwm_op")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if img_files and logo_file and st.button("Apply Watermark", key="btn_imgwm"):
+        if not (validate_uploads(img_files, allowed_ext=(".jpg", ".jpeg", ".png")) and
+                validate_uploads(logo_file, allowed_ext=(".png",))):
+            st.stop()
+        try:
+            logo_path = save_upload(logo_file)
+            batch_bar = st.progress(0.0)
+            outputs = []
+            for i, f in enumerate(img_files):
+                batch_bar.progress((i + 1) / len(img_files), text=f"File {i+1} of {len(img_files)}: {f.name}")
+                path = save_upload(f)
+                out_path = os.path.join(make_temp_dir(), f"watermarked_{f.name}")
+                image_tools.apply_watermark(path, logo_path, out_path, position=ipos, opacity=iop)
+                outputs.append(out_path)
+                col1, col2 = st.columns(2)
+                col1.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
+                col1.image(path, use_container_width=True)
+                col2.markdown('<div class="compare-label">After</div>', unsafe_allow_html=True)
+                col2.image(out_path, use_container_width=True)
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w") as zf:
+                for p in outputs:
+                    zf.write(p, os.path.basename(p))
+            st.download_button(f"⬇ Download all {len(outputs)} as .zip", zip_buf.getvalue(),
+                                file_name="watermarked_images.zip", key="dl_imgwm_zip")
+            log_history("Watermarked images", f"{len(outputs)} file(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
+# IMAGE — FILTERS / COLOR GRADE
+# ---------------------------------------------------------------------------
+if active == "img_grade":
+    st.markdown(f'<div class="card"><h4>{icon("palette", 18)}&nbsp; Filters (Images)</h4>'
+                '<p>Applies a consistent color look across a batch of photos.</p></div>', unsafe_allow_html=True)
+
+    img_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], key="imggrade_upload", accept_multiple_files=True)
+    hint("Same preset gets applied to every photo you upload here.")
+    preset = st.selectbox("Preset", list(image_tools.PRESETS.keys()), key="imggrade_preset")
+    hint("Cinematic and muted mute the color down for a filmic look; vibrant boosts saturation; black_and_white removes color entirely.")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if img_files and st.button("Apply Filter", key="btn_imggrade"):
+        if not validate_uploads(img_files, allowed_ext=(".jpg", ".jpeg", ".png")):
+            st.stop()
+        try:
+            batch_bar = st.progress(0.0)
+            outputs = []
+            for i, f in enumerate(img_files):
+                batch_bar.progress((i + 1) / len(img_files), text=f"File {i+1} of {len(img_files)}: {f.name}")
+                path = save_upload(f)
+                out_path = os.path.join(make_temp_dir(), f"{preset}_{f.name}")
+                image_tools.apply_filter(path, out_path, preset=preset)
+                outputs.append(out_path)
+                col1, col2 = st.columns(2)
+                col1.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
+                col1.image(path, use_container_width=True)
+                col2.markdown('<div class="compare-label">After</div>', unsafe_allow_html=True)
+                col2.image(out_path, use_container_width=True)
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w") as zf:
+                for p in outputs:
+                    zf.write(p, os.path.basename(p))
+            st.download_button(f"⬇ Download all {len(outputs)} as .zip", zip_buf.getvalue(),
+                                file_name=f"{preset}_images.zip", key="dl_imggrade_zip")
+            log_history("Applied filter to images", f"{preset} — {len(outputs)} file(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
+# IMAGE — RESIZE & CONVERT
+# ---------------------------------------------------------------------------
+if active == "img_resize":
+    st.markdown(f'<div class="card"><h4>{icon("folder", 18)}&nbsp; Resize &amp; Convert (Images)</h4>'
+                '<p>Batch resize and/or convert format across a folder of photos.</p></div>', unsafe_allow_html=True)
+
+    img_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png", "webp"], key="imgresize_upload", accept_multiple_files=True)
+    hint("Leave width/height at 0 to skip resizing and only convert the format.")
+
+    section_label("Resize")
+    rc1, rc2, rc3 = st.columns(3)
+    target_w = rc1.number_input("Width (px)", min_value=0, value=0, step=10, key="imgresize_w")
+    target_h = rc2.number_input("Height (px)", min_value=0, value=0, step=10, key="imgresize_h")
+    keep_aspect = rc3.checkbox("Keep aspect ratio", value=True, key="imgresize_aspect")
+    hint("With aspect ratio locked, the image is scaled to fit within the width/height you set without stretching.")
+
+    section_label("Format")
+    out_format = st.selectbox("Output format", list(image_tools.FORMATS.keys()), key="imgresize_fmt")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if img_files and st.button("Resize & Convert", key="btn_imgresize"):
+        if not validate_uploads(img_files, allowed_ext=(".jpg", ".jpeg", ".png", ".webp")):
+            st.stop()
+        try:
+            batch_bar = st.progress(0.0)
+            outputs = []
+            ext = image_tools.FORMATS.get(out_format, ".jpg")
+            for i, f in enumerate(img_files):
+                batch_bar.progress((i + 1) / len(img_files), text=f"File {i+1} of {len(img_files)}: {f.name}")
+                path = save_upload(f)
+                name = os.path.splitext(f.name)[0]
+                out_path = os.path.join(make_temp_dir(), f"{name}{ext}")
+                image_tools.resize_and_convert(path, out_path, width=target_w or None, height=target_h or None,
+                                                fmt=out_format, keep_aspect=keep_aspect)
+                outputs.append(out_path)
+
+            st.success(f"Converted {len(outputs)} image(s)")
+            prev_cols = st.columns(min(len(outputs), 5) or 1)
+            for i, p in enumerate(outputs):
+                with prev_cols[i % len(prev_cols)]:
+                    st.image(p, caption=os.path.basename(p))
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w") as zf:
+                for p in outputs:
+                    zf.write(p, os.path.basename(p))
+            st.download_button(f"⬇ Download all {len(outputs)} as .zip", zip_buf.getvalue(),
+                                file_name="converted_images.zip", key="dl_imgresize_zip")
+            log_history("Resized/converted images", f"{len(outputs)} file(s) → {out_format}")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
+# IMAGE — BACKGROUND REMOVAL
+# ---------------------------------------------------------------------------
+if active == "img_bgremove":
+    st.markdown(f'<div class="card"><h4>{icon("image", 18)}&nbsp; Background Removal</h4>'
+                '<p>Cuts the subject out of each photo onto a transparent background — useful on its own, '
+                'or as a first step before the Merge Photos tool.</p></div>', unsafe_allow_html=True)
+
+    img_files = st.file_uploader("Upload image(s)", type=["jpg", "jpeg", "png"], key="imgbg_upload", accept_multiple_files=True)
+    hint("The first run downloads a small AI segmentation model (~176MB) — after that it works fully offline.")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if img_files and st.button("Remove Background", key="btn_imgbg"):
+        if not validate_uploads(img_files, allowed_ext=(".jpg", ".jpeg", ".png")):
+            st.stop()
+        try:
+            batch_bar = st.progress(0.0)
+            outputs = []
+            for i, f in enumerate(img_files):
+                batch_bar.progress((i + 1) / len(img_files), text=f"File {i+1} of {len(img_files)}: {f.name} (loading model on first run)...")
+                path = save_upload(f)
+                name = os.path.splitext(f.name)[0]
+                out_path = os.path.join(make_temp_dir(), f"{name}_nobg.png")
+                image_tools.remove_background(path, out_path)
+                outputs.append(out_path)
+                col1, col2 = st.columns(2)
+                col1.markdown('<div class="compare-label">Before</div>', unsafe_allow_html=True)
+                col1.image(path, use_container_width=True)
+                col2.markdown('<div class="compare-label">After</div>', unsafe_allow_html=True)
+                col2.image(out_path, use_container_width=True)
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w") as zf:
+                for p in outputs:
+                    zf.write(p, os.path.basename(p))
+            st.download_button(f"⬇ Download all {len(outputs)} as .zip", zip_buf.getvalue(),
+                                file_name="background_removed.zip", key="dl_imgbg_zip")
+            log_history("Removed background", f"{len(outputs)} file(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
+# IMAGE — MERGE PHOTOS (two people, chosen background)
+# ---------------------------------------------------------------------------
+if active == "img_merge":
+    st.markdown(f'<div class="card"><h4>{icon("clapperboard", 18)}&nbsp; Merge Photos</h4>'
+                '<p>Cuts each person out of their own photo, then places both of them onto a background '
+                'image you choose — e.g. put yourself and a friend into the same photo, even if you were '
+                'never in the same place.</p></div>', unsafe_allow_html=True)
+
+    mcol1, mcol2, mcol3 = st.columns(3)
+    person_a = mcol1.file_uploader("Person A's photo", type=["jpg", "jpeg", "png"], key="merge_a")
+    person_b = mcol2.file_uploader("Person B's photo", type=["jpg", "jpeg", "png"], key="merge_b")
+    bg_photo = mcol3.file_uploader("Background photo", type=["jpg", "jpeg", "png"], key="merge_bg")
+    hint("Use a clear, front-facing photo of each person for the cleanest cutout — the background you choose here is what both people get placed onto.")
+
+    if person_a and person_b and bg_photo:
+        section_label("Position & size — Person A")
+        pa1, pa2, pa3 = st.columns(3)
+        scale_a = pa1.slider("Size", 0.2, 1.0, 0.5, key="merge_scale_a")
+        x_a = pa2.slider("Horizontal position", 0.0, 1.0, 0.3, key="merge_x_a")
+        y_a = pa3.slider("Vertical position", 0.0, 1.0, 0.6, key="merge_y_a")
+
+        section_label("Position & size — Person B")
+        pb1, pb2, pb3 = st.columns(3)
+        scale_b = pb1.slider("Size", 0.2, 1.0, 0.5, key="merge_scale_b")
+        x_b = pb2.slider("Horizontal position", 0.0, 1.0, 0.7, key="merge_x_b")
+        y_b = pb3.slider("Vertical position", 0.0, 1.0, 0.6, key="merge_y_b")
+        hint("Position is a fraction of the background image (0 = left/top edge, 1 = right/bottom edge). Adjust these and re-run to fine-tune placement.")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if person_a and person_b and bg_photo and st.button("Merge Photos", key="btn_merge"):
+        if not (validate_uploads(person_a, allowed_ext=(".jpg", ".jpeg", ".png")) and
+                validate_uploads(person_b, allowed_ext=(".jpg", ".jpeg", ".png")) and
+                validate_uploads(bg_photo, allowed_ext=(".jpg", ".jpeg", ".png"))):
+            st.stop()
+        try:
+            with st.spinner("Loading AI model (first run downloads ~176MB) and cutting out each person..."):
+                a_path = save_upload(person_a)
+                b_path = save_upload(person_b)
+                bg_path = save_upload(bg_photo)
+                out_path = os.path.join(make_temp_dir(), "merged.jpg")
+                image_tools.merge_people_onto_background(
+                    a_path, b_path, bg_path, out_path,
+                    scale_a=scale_a, x_a=x_a, y_a=y_a, scale_b=scale_b, x_b=x_b, y_b=y_b,
+                )
+            st.success("Merged!")
+            st.markdown('<div class="compare-label">Result</div>', unsafe_allow_html=True)
+            st.image(out_path, use_container_width=True)
+            with open(out_path, "rb") as f:
+                st.download_button("⬇ Download merged photo", f, file_name="merged.jpg", key="dl_merge")
+            log_history("Merged photos", "2 people onto 1 background")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means one of the uploaded files wasn\'t readable.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
+# IMAGE — CUSTOM WORKFLOW (chain: bg removal → watermark → filter → resize)
+# ---------------------------------------------------------------------------
+if active == "img_combo":
+    st.markdown(f'<div class="card"><h4>{icon("link", 18)}&nbsp; Custom Workflow (Images)</h4>'
+                '<p>Pick any combination of steps below — they run in this order, each one working on the '
+                'previous step\'s result — and get a single .zip at the end.</p></div>', unsafe_allow_html=True)
+
+    icombo_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"], key="imgcombo_upload")
+    hint("Works on one image at a time, run through whichever steps you turn on below.")
+    if icombo_file:
+        st.markdown('<div class="compare-label">Preview</div>', unsafe_allow_html=True)
+        st.image(icombo_file, use_container_width=True)
+
+    section_label("Steps to run — applied top to bottom")
+    ido_bg = st.checkbox("1 · Remove background", value=False, key="icombo_do_bg")
+    if ido_bg:
+        hint("Downloads a small AI model on first use (~176MB).")
+
+    ido_wm = st.checkbox("2 · Apply watermark", value=False, key="icombo_do_wm")
+    icombo_logo = None
+    if ido_wm:
+        icombo_logo = st.file_uploader("Logo (PNG)", type=["png"], key="icombo_logo")
+        iw1, iw2 = st.columns(2)
+        icombo_pos = iw1.selectbox("Position", list(image_tools.POSITIONS.keys()), key="icombo_wm_pos")
+        icombo_op = iw2.slider("Opacity", 0.1, 1.0, 0.7, key="icombo_wm_op")
+
+    ido_filter = st.checkbox("3 · Apply filter", value=False, key="icombo_do_filter")
+    if ido_filter:
+        icombo_preset = st.selectbox("Preset", list(image_tools.PRESETS.keys()), key="icombo_preset")
+
+    ido_resize = st.checkbox("4 · Resize & convert", value=False, key="icombo_do_resize")
+    if ido_resize:
+        ir1, ir2, ir3 = st.columns(3)
+        icombo_w = ir1.number_input("Width (px)", min_value=0, value=0, step=10, key="icombo_w")
+        icombo_h = ir2.number_input("Height (px)", min_value=0, value=0, step=10, key="icombo_h")
+        icombo_fmt = ir3.selectbox("Format", list(image_tools.FORMATS.keys()), key="icombo_fmt")
+
+    st.caption("⏹ To stop a run in progress, refresh this page — any leftover temp files are cleaned up automatically the next time you run a tool.")
+    if icombo_file and st.button("Run Workflow", key="btn_icombo"):
+        if not validate_uploads(icombo_file, allowed_ext=(".jpg", ".jpeg", ".png")):
+            st.stop()
+        if ido_wm and not icombo_logo:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Missing logo</b> — upload a PNG logo for the watermark step, or turn that step off.</div>', unsafe_allow_html=True)
+            st.stop()
+        try:
+            isteps = [n for n, on in [("Background removal", ido_bg), ("Watermark", ido_wm),
+                                       ("Filter", ido_filter), ("Resize/convert", ido_resize)] if on]
+            if not isteps:
+                st.markdown(f'<div class="empty-state">{icon("inbox", 26)}<br><b>Nothing selected</b><br>Turn on at least one step above.</div>', unsafe_allow_html=True)
+                st.stop()
+
+            current_path = save_upload(icombo_file)
+            n_isteps = len(isteps)
+            istep_bar = st.progress(0.0)
+            idone = 0
+
+            if ido_bg:
+                istep_bar.progress(idone / max(n_isteps, 1), text="Removing background (loading model on first run)...")
+                out = os.path.join(make_temp_dir(), "step_bg.png")
+                image_tools.remove_background(current_path, out)
+                current_path = out
+                idone += 1
+
+            if ido_wm:
+                istep_bar.progress(idone / max(n_isteps, 1), text="Applying watermark...")
+                logo_path = save_upload(icombo_logo)
+                out = os.path.join(make_temp_dir(), "step_wm.png")
+                image_tools.apply_watermark(current_path, logo_path, out, position=icombo_pos, opacity=icombo_op)
+                current_path = out
+                idone += 1
+
+            if ido_filter:
+                istep_bar.progress(idone / max(n_isteps, 1), text="Applying filter...")
+                out = os.path.join(make_temp_dir(), "step_filter.jpg")
+                image_tools.apply_filter(current_path, out, preset=icombo_preset)
+                current_path = out
+                idone += 1
+
+            final_name = "final_image.jpg"
+            if ido_resize:
+                istep_bar.progress(idone / max(n_isteps, 1), text="Resizing/converting...")
+                ext = image_tools.FORMATS.get(icombo_fmt, ".jpg")
+                final_name = f"final_image{ext}"
+                out = os.path.join(make_temp_dir(), final_name)
+                image_tools.resize_and_convert(current_path, out, width=icombo_w or None, height=icombo_h or None,
+                                                fmt=icombo_fmt, keep_aspect=True)
+                current_path = out
+                idone += 1
+            else:
+                final_name = "final_image" + os.path.splitext(current_path)[1]
+
+            istep_bar.progress(1.0, text="Done")
+            st.success(f"Workflow complete — ran {len(isteps)} step(s)")
+
+            st.markdown('<div class="compare-label">Result</div>', unsafe_allow_html=True)
+            st.image(current_path, use_container_width=True)
+
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w") as zf:
+                zf.write(current_path, final_name)
+            st.download_button(f"⬇ Download everything as .zip", zip_buf.getvalue(),
+                                file_name=f"{icombo_file.name}_workflow.zip", key="dl_icombo_zip")
+            log_history("Ran custom image workflow", f"{icombo_file.name} — {len(isteps)} step(s)")
+        except Exception as e:
+            st.markdown(f'<div class="error-card">{icon("alert-circle", 16)} <b>Something went wrong while processing.</b><br>This usually means the uploaded file format wasn\'t readable.</div>', unsafe_allow_html=True)
+            with st.expander("Show technical details"):
+                st.exception(e)
+
+# ---------------------------------------------------------------------------
 # FOOTER
 # ---------------------------------------------------------------------------
 st.markdown(f"""
 <div class="editflow-footer">
-  🎬 <b>EditFlow</b> — Batch video-editing automation, built by <b>Noor Ahmed Khan</b>
+  🎬 <b>EditFlow</b> — Batch video &amp; image editing automation, built by <b>Noor Ahmed Khan</b>
 </div>
 """, unsafe_allow_html=True)

@@ -4,14 +4,18 @@ opencv-python-headless>=4.8
 numpy>=1.24
 matplotlib>=3.8
 openai-whisper>=20231117
+Pillow>=10.0
+rembg>=2.0.50
+onnxruntime>=1.16
 
-# Note: exact/compatible-release pinning (==, ~=) was tried here but caused
-# install failures on this environment's Python version — some pinned
-# packages had no pre-built wheel available and/or conflicted with
-# transitive dependencies (torch/triton via openai-whisper). Loose ">="
-# constraints let the resolver pick versions that are actually installable
-# here. If you want tighter pinning later, run `pip freeze` on a working
-# deployment and copy those exact versions in.
+# Note: loose ">=" constraints are used deliberately — exact/compatible-release
+# pinning (==, ~=) was tried and caused install failures on this environment's
+# Python version (some pinned packages had no pre-built wheel available and/or
+# conflicted with transitive dependencies). If you want tighter pinning later,
+# run `pip freeze` on a working deployment and copy those exact versions in.
+#
+# rembg (background removal) downloads a small segmentation model (~176MB)
+# the first time it's used — same pattern as the Whisper captions model.
 #
 # ffmpeg is installed via packages.txt on Streamlit Cloud.
 # For local development, install it separately:
